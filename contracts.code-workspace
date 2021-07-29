@@ -1,0 +1,13 @@
+{
+  "folders": [
+	{
+		"path": "..\\options-frontend"
+	},
+	{
+		"path": "."
+	},
+	{
+		"path": "..\\options-graphql"
+	}
+]
+}
