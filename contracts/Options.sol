@@ -7,10 +7,10 @@ pragma solidity 0.8.6;
 import "./interfaces/Interfaces.sol";
 import "./OptionsLP.sol";
 
-contract Options is ERC721, AccessControl, IFeeCalcs {
+contract Options is ERC721, AccessControl, IFeeCalcs, IOptions {
     using SafeERC20 for IERC20;
     
-    IOptions.Option[] public options;
+    Option[] public options;
     OptionsLP optionsLP;
     address public protocolFeeRecipient;
     // IFeeCalcs public feeCalcs;
@@ -39,7 +39,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         uint256 period,
         uint256 optionSize,
         uint256 strike,
-        IOptions.OptionType optionType,
+        OptionType optionType,
         uint poolId,
         IOracle oracle
     )   public 
@@ -61,7 +61,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         uint256 period,
         uint256 optionSize,
         uint256 strike,
-        IOptions.OptionType optionType,
+        OptionType optionType,
         uint poolId,
         IOracle oracle
     )   public
@@ -86,7 +86,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         uint256 optionSize,
         uint256 strike,
         uint256 currentPrice,
-        IOptions.OptionType optionType,
+        OptionType optionType,
         uint poolId,
         IOracle oracle)
         override
@@ -102,7 +102,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         uint256 optionSize,
         uint256 strike,
         uint256 currentPrice,
-        IOptions.OptionType optionType,
+        OptionType optionType,
         uint poolId,
         IOracle oracle
     )
@@ -111,9 +111,9 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         pure
         returns (uint256)
     {
-      if (strike > currentPrice && optionType == IOptions.OptionType.Put)
+      if (strike > currentPrice && optionType == OptionType.Put)
             return (strike-currentPrice)*1e4/currentPrice;
-        if (strike < currentPrice && optionType == IOptions.OptionType.Call)
+        if (strike < currentPrice && optionType == OptionType.Call)
             return (currentPrice-strike)*1e4/currentPrice;
         return 0;        
     }
@@ -124,11 +124,11 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         uint256 optionSize,
         uint256 strike, 
         uint256 currentPrice,
-        IOptions.OptionType optionType,
+        OptionType optionType,
         uint poolId,
         IOracle oracle
     ) override external view returns (uint256) {
-        if (optionType == IOptions.OptionType.Put)
+        if (optionType == OptionType.Put)
             return uint256(2)*sqrt(period)*strike/currentPrice/uint256(4);
         else
             return uint256(2)*sqrt(period)*currentPrice/strike/uint256(4);
@@ -138,7 +138,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         uint256 optionSize,
         uint256 strike,
         uint256 currentPrice,
-        IOptions.OptionType optionType,
+        OptionType optionType,
         uint poolId,
         IOracle oracle
     )
@@ -148,10 +148,10 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         returns (uint256)
     {
         //(utilisation^2/4) * (put or call^2/4) / 62500000000
-        if( optionType == IOptions.OptionType.Call ){ 
+        if( optionType == OptionType.Call ){ 
             return (optionsLP.poolUtilisation(poolId)*optionsLP.poolUtilisation(poolId)/4) * (optionsLP.callRatio(poolId)*optionsLP.callRatio(poolId)/4) / 62500000000;
         }
-        if( optionType == IOptions.OptionType.Put ){ 
+        if( optionType == OptionType.Put ){ 
             return (optionsLP.poolUtilisation(poolId)*optionsLP.poolUtilisation(poolId)/4) * (optionsLP.putRatio(poolId)*optionsLP.putRatio(poolId)/4) / 62500000000; 
         }         
     }
@@ -161,7 +161,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         uint256 optionSize,
         uint256 strike,
         uint256 currentPrice,
-        IOptions.OptionType optionType,
+        OptionType optionType,
         uint poolId,
         IOracle oracle)         
         override
@@ -186,7 +186,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         uint256 period,
         uint256 optionSize,
         uint256 strike,
-        IOptions.OptionType optionType,
+        OptionType optionType,
         uint256 poolId,
         IOracle oracle
     )
@@ -194,7 +194,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         returns (uint256 optionID)
     {
         require(
-            optionType == IOptions.OptionType.Call || optionType == IOptions.OptionType.Put,
+            optionType == OptionType.Call || optionType == OptionType.Put,
             "Options: Wrong option type"
         );
         require(period >= optionsLP.periodMin(poolId), "Options: Period is too short");
@@ -202,7 +202,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         (Fees memory _premium) = premium(period, optionSize, strike, optionType, poolId, oracle);
         
         optionID = options.length;        
-        IOptions.Option memory option = _createOption(account,period,optionSize,strike,optionType,poolId,oracle,_premium); 
+        Option memory option = _createOption(account,period,optionSize,strike,optionType,poolId,oracle,_premium); 
 
         optionsLP.collateralToken(poolId).transferFrom(account, address(protocolFeeRecipient), _premium.protocolFee);
         optionsLP.collateralToken(poolId).transferFrom(account, optionsLP.poolOwner(poolId), _premium.poolFee);
@@ -213,20 +213,20 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         options.push(option);
         _safeMint(account, optionID);
         
-        // emit Create(optionID, account, poolId, _premium.protocolFee, _premium.total);
+        emit CreateOption(optionID, account, poolId, _premium.protocolFee, _premium.poolFee, _premium.total);
     }
     
       function _createOption(address payable account, 
         uint256 period,
         uint256 optionSize,
         uint256 strike,
-        IOptions.OptionType optionType,
-        uint256 poolId, IOracle oracle, Fees memory _premium) internal view returns (IOptions.Option memory option){
+        OptionType optionType,
+        uint256 poolId, IOracle oracle, Fees memory _premium) internal view returns (Option memory option){
 
         // uint256 strikeAmount = optionSize;
         // uint optPremium = (_premium.total.sub(_premium.protocolFee));
-        option = IOptions.Option(
-           IOptions.State.Active,
+        option = Option(
+           State.Active,
             account,
             strike,
             optionSize,
@@ -255,16 +255,16 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
      * @param optionID ID of your option
      */
     function exercise(uint256 optionID) external {
-        IOptions.Option storage option = options[optionID];
+        Option storage option = options[optionID];
 
         require(option.expiration >= block.timestamp, "Options: Option has expired");
         require((option.holder == msg.sender)||isApprovedForAll(option.holder,msg.sender), "Options: Not sender or approved");
-        require(option.state == IOptions.State.Active, "Options: Wrong state");
+        require(option.state == State.Active, "Options: Wrong state");
 
-        option.state = IOptions.State.Exercised;
+        option.state = State.Exercised;
         uint256 profit = payProfit(optionID);
 
-        // emit Exercise(optionID, option.marketId, profit);
+        emit Exercise(optionID, option.poolId, profit);
     }
 
 
@@ -276,18 +276,18 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         internal
         returns (uint profit)
     {
-        IOptions.Option memory option = options[optionID];
+        Option memory option = options[optionID];
         uint256 currentPrice = latestAnswer(option.oracle);
-        if (option.optionType == IOptions.OptionType.Call) {
+        if (option.optionType == OptionType.Call) {
             require(option.strike <= currentPrice, "Options: Current price is too low");
             profit = (currentPrice-option.strike)*(option.optionSize)/(option.strike);
-        } else if (option.optionType == IOptions.OptionType.Put) {
+        } else if (option.optionType == OptionType.Put) {
             require(option.strike >= currentPrice, "Options: Current price is too high");
             profit = (option.strike-currentPrice)*(option.optionSize)/(option.strike);
         }
         if (profit > option.lockedAmount)
             profit = option.lockedAmount;
-        optionsLP.send(optionID, option.holder, option.marketId, profit);
+        // optionsLP.send(optionID, option.holder, option.marketId, profit);
     }
 
     
@@ -297,12 +297,12 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
      * @param newHolder Address of new option holder
      */
     function transfer(uint256 optionID, address payable newHolder) external {
-        IOptions.Option storage option = options[optionID];
+        Option storage option = options[optionID];
 
         require(newHolder != address(0), "Options: New holder address is zero");
         require(option.expiration >= block.timestamp, "Options: Option has expired");
         require(option.holder == msg.sender, "Options: Wrong msg.sender");
-        require(option.state == IOptions.State.Active, "Options: Only active option could be transferred");
+        require(option.state == State.Active, "Options: Only active option could be transferred");
 
         option.holder = newHolder;
     }
@@ -314,10 +314,10 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
      * @param optionID ID of the option
      */
       function unlock(uint256 optionID) public {
-        IOptions.Option storage option = options[optionID];
+        Option storage option = options[optionID];
         require(option.expiration < block.timestamp, "Options: Option has not expired yet");
-        require(option.state == IOptions.State.Active, "Options: Option is not active");
-        option.state = IOptions.State.Expired;
+        require(option.state == State.Active, "Options: Option is not active");
+        option.state = State.Expired;
         optionsLP.unlock(optionID);
         // emit Expire(optionID, option.marketId, option.premium);
       }

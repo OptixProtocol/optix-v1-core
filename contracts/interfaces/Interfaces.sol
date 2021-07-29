@@ -54,16 +54,14 @@ interface IFeeCalcs {
 }
 
 interface IOptions {
-    event Create(
-        uint256 indexed id,
-        address indexed account,
-        uint256 indexed marketId,
-        uint256 protocolFee,
-        uint256 totalFee
-    );
+    event CreateOption(uint256 indexed id, address indexed account, uint256 indexed poolId, uint256 protocolFee, uint256 poolFee, uint256 totalPremium);
+    event CreatePool(uint indexed poolId, IOracle oracle, IERC20 _collateralToken, IERC20 _hedgeToken, IUniswapV2Factory _swapFactory, IUniswapV2Router02 _swapRouter);
+    event UpdateOracle(IOracle indexed oracle, uint indexed poolId, bool enabled); 
 
-    event Exercise(uint256 indexed optionId, uint marketId, uint256 profit);
-    event Expire(uint256 indexed optionId, uint marketId, uint256 premium);
+    event Exercise(uint256 indexed optionId, uint poolId, uint256 profit);
+    event Expire(uint256 indexed optionId, uint poolId, uint256 premium);
+
+
     enum State {Inactive, Active, Exercised, Expired}
     enum OptionType {Invalid, Put, Call}
 
@@ -76,23 +74,23 @@ interface IOptions {
         uint256 premium;
         uint256 expiration;
         OptionType optionType;
-        uint256 marketId;
+        uint256 poolId;
         IOracle oracle;
     }
 
-    function options(uint) external view returns (
-        State state,
-        address payable holder,
-        uint256 strike,
-        uint256 optionSize,
-        uint256 lockedAmount,
-        uint256 premium,
-        uint256 expiration,
-        OptionType optionType,
-        uint256 marketId
-    );
+    // function options(uint) external view returns (
+    //     State state,
+    //     address payable holder,
+    //     uint256 strike,
+    //     uint256 optionSize,
+    //     uint256 lockedAmount,
+    //     uint256 premium,
+    //     uint256 expiration,
+    //     OptionType optionType,
+    //     uint256 poolId
+    // );
     
-    struct LockedLiquidity { 
+    struct LockedCollateral { 
         uint amount; 
         uint premium; 
         bool locked; 

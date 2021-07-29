@@ -36,7 +36,7 @@ import "./OptionsLP1155.sol";
 // options.create4: "0xD445D873D0EDc0cD35ff4F61b334df8b7B822b1b","86400","1000000000","1816780025","1","0","0xd8bD0a1cB028a31AA859A21A3758685a95dE4623"
 
 
-contract OptionsLP is AccessControl {
+contract OptionsLP is AccessControl, IOptions {
     
     uint256 public poolCount = 0;
 
@@ -49,11 +49,12 @@ contract OptionsLP is AccessControl {
     mapping(uint256 => uint256) public swapBalanceOf;
     mapping(uint256 => uint256) public collateralReserves;
     mapping(uint256 => uint256) public hedgeReserves;    
-    mapping(uint256 => uint256) public lockedCollateral;
+    // mapping(uint256 => uint256) public lockedCollateral;
     mapping(uint256 => uint256) public lockedCollateralCall;
     mapping(uint256 => uint256) public lockedCollateralPut;
-
-    // updatable by pool owner/operator
+    LockedCollateral[] public lockedCollateral;
+ 
+    // updatable by pool owner/operator 
     mapping(uint256 => address) public poolOwner;
     mapping(uint256 => address) public poolOperator;
     mapping(uint256 => IFeeCalcs) public poolFeeCalc;
@@ -68,7 +69,6 @@ contract OptionsLP is AccessControl {
     mapping(IOracle => mapping(uint256 => bool)) public oracleEnabled; 
     
     mapping(uint256 => mapping(address => uint256)) public lastProvideTimestamp; 
-    IOptions.LockedLiquidity[] public lockedLiquidity;
     OptionsLP1155 public optionsLP1155;
  
     // constants 
@@ -93,7 +93,7 @@ contract OptionsLP is AccessControl {
         hedgeReserves[poolCount] = 0;
         collateralizationRatio[poolCount] = 1e4;
         
-        lockedCollateral[poolCount] = 0;
+        // lockedCollateral[poolCount] = 0;
         lockedCollateralCall[poolCount] = 0;
         lockedCollateralPut[poolCount] = 0;
         
@@ -109,7 +109,9 @@ contract OptionsLP is AccessControl {
         collateralizationRatio[poolCount] = 10000;
         
         oracleEnabled[_oracle][poolCount] = true;
-        
+        emit CreatePool(poolCount, _oracle, _collateralToken, _hedgeToken, _swapFactory, _swapRouter);
+        emit UpdateOracle(_oracle, poolCount, true);
+
         poolCount += 1;
    }
 
@@ -124,7 +126,7 @@ contract OptionsLP is AccessControl {
      * @return mintedLP1155Tokens Tokens minted to represent ownership
      */
     function provide(address account, uint _poolId, uint256 collateralAmount) external returns (uint256 mintedLP1155Tokens){
-        // OptionMarket memory market = optionMarkets[marketId];
+        // OptionMarket memory market = optionMarkets[poolId];
         lastProvideTimestamp[_poolId][account] = block.timestamp;
         
         uint256 supply = optionsLP1155.totalSupply(_poolId);
@@ -138,7 +140,7 @@ contract OptionsLP is AccessControl {
         // require(mintedLPTokens >= minMint, "OptionsLP: Mint limit is too large");
         require(mintedLP1155Tokens > 0, "OptionsLP: Amount is too small");
 
-        // require(swapPair[marketId].balanceOf(account)>=collateralAmount,
+        // require(swapPair[poolId].balanceOf(account)>=collateralAmount,
         //     "OptionsLP: Please lower the amount of premiums that you want to send."
         // );        
         require(collateralAmount<=maxInvest[_poolId],"OptionsLP: Max invest limit reached");
@@ -159,9 +161,9 @@ contract OptionsLP is AccessControl {
      */
       function withdraw(address account, uint _poolId, uint256 burnLP1155Tokens)  external returns (uint256 burnSwapTokens) {
     
-        // OptionMarket memory market = optionMarkets[marketId];
+        // OptionMarket memory market = optionMarkets[poolId];
         // require(
-        //     lastProvideTimestamp[swapPair[marketId]][account].add(lockupPeriod[swapPair[marketId]]) <= block.timestamp,
+        //     lastProvideTimestamp[swapPair[poolId]][account].add(lockupPeriod[swapPair[poolId]]) <= block.timestamp,
         //     "SwapLiquiditiyPool: Withdrawal is locked up"
         // );
         
@@ -182,23 +184,23 @@ contract OptionsLP is AccessControl {
      * @param amount Amount of funds that should be locked in an option
      */
     function lock(uint id, uint256 amount, IFeeCalcs.Fees memory _premium, uint poolId, IOptions.OptionType optionType) public  {
-        //   OptionMarket memory market = optionMarkets[marketId];
-        require(id == lockedLiquidity.length, "OptionsLP: Wrong id");
+        //   OptionMarket memory market = optionMarkets[poolId];
+        require(id == lockedCollateral.length, "OptionsLP: Wrong id");
         //   require(
-        //         lockedAmount[swapPair[marketId]].add(amount) <= totalBalance(swapPair[marketId]),
+        //         lockedAmount[swapPair[poolId]].add(amount) <= totalBalance(swapPair[poolId]),
         //         "OptionsLP: Amount is too large."
         //     );
         require(hasRole(CONTRACT_CALLER_ROLE, _msgSender()), "OptionsLP: must have contract caller role");
 
  
-        lockedLiquidity.push(IOptions.LockedLiquidity(amount, _premium.total, true, poolId, optionType));
+        lockedCollateral.push(LockedCollateral(amount, _premium.total, true, poolId, optionType));
         if(optionType == IOptions.OptionType.Put){
             lockedCollateralPut[poolId] = lockedCollateralPut[poolId]+_premium.total;
         }
         else{
             lockedCollateralCall[poolId] = lockedCollateralCall[poolId]+_premium.total;
         }
-        lockedCollateral[poolId] = lockedCollateral[poolId]+_premium.total;
+        // lockedCollateral[poolId] = lockedCollateral[poolId]+_premium.total;
         collateralReserves[poolId] = collateralReserves[poolId] + _premium.total-_premium.protocolFee-_premium.poolFee;
 
     }
@@ -208,9 +210,9 @@ contract OptionsLP is AccessControl {
      * @param amount Amount of funds that should be unlocked in an expired option
      */
     function unlock(uint256 optionId) public  {
-        IOptions.LockedLiquidity storage ll = lockedLiquidity[optionId];
-        // OptionMarket memory market = optionMarkets[ll.marketId];
-        require(ll.locked, "OptionsLP: LockedLiquidity with id has already unlocked");
+        LockedCollateral storage ll = lockedCollateral[optionId];
+        // OptionMarket memory market = optionMarkets[ll.poolId];
+        require(ll.locked, "OptionsLP: lockedCollateral with id has already unlocked");
         require(hasRole(CONTRACT_CALLER_ROLE, _msgSender()), "OptionsLP: must have contract caller role");
 
         ll.locked = false;
@@ -219,9 +221,9 @@ contract OptionsLP is AccessControl {
           lockedCollateralPut[ll.poolId] = lockedCollateralPut[ll.poolId]-ll.premium;
         else
           lockedCollateralCall[ll.poolId] = lockedCollateralCall[ll.poolId]-ll.premium;
-        lockedCollateral[ll.poolId] = lockedCollateral[ll.poolId]-ll.amount;
+        // lockedCollateral[ll.poolId] = lockedCollateral[ll.poolId]-ll.amount;
 
-        // emit Profit(optionId, ll.marketId, ll.premium);
+        // emit Profit(optionId, ll.poolId, ll.premium);
     }
 
     /*
@@ -229,9 +231,9 @@ contract OptionsLP is AccessControl {
      * @param to Provider
      * @param amount Funds that should be sent
      */
-    function send(uint optionId, address payable to, uint marketId, uint256 amount) public {
-        IOptions.LockedLiquidity storage ll = lockedLiquidity[optionId];
-        // OptionMarket memory market = optionMarkets[ll.marketId];
+    function send(uint optionId, address payable to, uint256 amount) public {
+        LockedCollateral storage ll = lockedCollateral[optionId];
+        // OptionMarket memory market = optionMarkets[ll.poolId];
         require(ll.locked, "OptionsLP: id already unlocked");
         require(to != address(0));
         require(hasRole(CONTRACT_CALLER_ROLE, _msgSender()), "OptionsLP: must have contract caller role");
@@ -243,15 +245,15 @@ contract OptionsLP is AccessControl {
         else
           lockedCollateralCall[ll.poolId] = lockedCollateralCall[ll.poolId]-ll.premium;
 
-        lockedCollateral[ll.poolId] = lockedCollateral[ll.poolId]-ll.amount;
+        // lockedCollateral[ll.poolId] = lockedCollateral[ll.poolId]-ll.amount;
 
         uint transferAmount = amount > ll.amount ? ll.amount : amount;
         // ll.pool.safeTransfer(to, transferAmount);
 
         // if (transferAmount <= ll.premium)
-        //     emit Profit(optionId, marketId, ll.premium - transferAmount);
+        //     emit Profit(optionId, poolId, ll.premium - transferAmount);
         // else
-        //     emit Loss(optionId, marketId, transferAmount - ll.premium);
+        //     emit Loss(optionId, poolId, transferAmount - ll.premium);
     }
 
 
@@ -285,19 +287,19 @@ contract OptionsLP is AccessControl {
     }
     
     function poolAvailableCollateralBalance(uint _poolId) public view returns (uint256) {
-        return poolTotalCollateralBalance(_poolId)-lockedCollateral[_poolId];
+        return poolTotalCollateralBalance(_poolId)-lockedCollateralPut[_poolId]+lockedCollateralCall[_poolId];
     }
 
 
     function poolUtilisation(uint _poolId) public view returns (uint256) {
-        return lockedCollateral[_poolId]*(1e4)/(poolTotalCollateralBalance(_poolId));
+        return (lockedCollateralPut[_poolId]+lockedCollateralCall[_poolId])*(1e4)/(poolTotalCollateralBalance(_poolId));
     }
     
     function putRatio(uint _poolId) public view returns (uint256){
-       if (lockedCollateral[_poolId]==0)
+       if (lockedCollateralPut[_poolId]+lockedCollateralCall[_poolId]==0)
             return 5e3;
 
-        int256 ratio = int256((lockedCollateralPut[_poolId]*(1e4))/(lockedCollateral[_poolId]));
+        int256 ratio = int256((lockedCollateralPut[_poolId]*(1e4))/(lockedCollateralPut[_poolId]+lockedCollateralCall[_poolId]));
         if (ratio<0)
             return 0;
         else
@@ -305,10 +307,10 @@ contract OptionsLP is AccessControl {
     }
 
      function callRatio(uint _poolId) public view returns (uint256){
-       if (lockedCollateral[_poolId]==0)
+       if (lockedCollateralPut[_poolId]+lockedCollateralCall[_poolId]==0)
             return 5e3;
 
-        int256 ratio = int256((lockedCollateralCall[_poolId]*(1e4))/(lockedCollateral[_poolId]));
+        int256 ratio = int256((lockedCollateralCall[_poolId]*(1e4))/(lockedCollateralPut[_poolId]+lockedCollateralCall[_poolId]));
         if (ratio<0)
             return 0;
         else
@@ -378,6 +380,7 @@ contract OptionsLP is AccessControl {
     }
     function setOracleEnabled(uint poolId, IOracle _oracle, bool value) external  {
         oracleEnabled[_oracle][poolId] = value; 
+        emit IOptions.UpdateOracle(_oracle, poolId, value);
     }    
     
 }
