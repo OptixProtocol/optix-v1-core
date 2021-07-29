@@ -190,7 +190,7 @@ contract OptionsLP is AccessControl {
         //     );
         require(hasRole(CONTRACT_CALLER_ROLE, _msgSender()), "OptionsLP: must have contract caller role");
 
-
+ 
         lockedLiquidity.push(IOptions.LockedLiquidity(amount, _premium.total, true, poolId, optionType));
         if(optionType == IOptions.OptionType.Put){
             lockedCollateralPut[poolId] = lockedCollateralPut[poolId]+_premium.total;

@@ -77,6 +77,7 @@ interface IOptions {
         uint256 expiration;
         OptionType optionType;
         uint256 marketId;
+        IOracle oracle;
     }
 
     function options(uint) external view returns (

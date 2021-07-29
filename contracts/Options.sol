@@ -202,7 +202,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         (Fees memory _premium) = premium(period, optionSize, strike, optionType, poolId, oracle);
         
         optionID = options.length;        
-        IOptions.Option memory option = _createOption(account,period,optionSize,strike,optionType,poolId,_premium);
+        IOptions.Option memory option = _createOption(account,period,optionSize,strike,optionType,poolId,oracle,_premium); 
 
         optionsLP.collateralToken(poolId).transferFrom(account, address(protocolFeeRecipient), _premium.protocolFee);
         optionsLP.collateralToken(poolId).transferFrom(account, optionsLP.poolOwner(poolId), _premium.poolFee);
@@ -221,20 +221,21 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         uint256 optionSize,
         uint256 strike,
         IOptions.OptionType optionType,
-        uint256 poolId, Fees memory _premium) internal view returns (IOptions.Option memory option){
+        uint256 poolId, IOracle oracle, Fees memory _premium) internal view returns (IOptions.Option memory option){
 
-        uint256 strikeAmount = optionSize;
+        // uint256 strikeAmount = optionSize;
         // uint optPremium = (_premium.total.sub(_premium.protocolFee));
         option = IOptions.Option(
            IOptions.State.Active,
             account,
             strike,
             optionSize,
-            (strikeAmount*(optionsLP.collateralizationRatio(poolId))/(10000)+(_premium.strikeFee/(1e9)))*(1e9),
+            optionSize*10000/(optionsLP.collateralizationRatio(poolId)),
             _premium.total,
             block.timestamp + period,
             optionType,
-            poolId
+            poolId,
+            oracle
         );
     }
     
@@ -267,7 +268,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
     }
 
 
-/**
+    /**
      * @notice Sends profits in erc20 tokens from the token pool to an option holder's address
      * @param optionID A specific option contract id
      */
@@ -276,14 +277,13 @@ contract Options is ERC721, AccessControl, IFeeCalcs {
         returns (uint profit)
     {
         IOptions.Option memory option = options[optionID];
-        uint256 _latestPrice = latestAnswer(optionsLP.oracle(option.marketId));
-        uint256 currentPrice = uint256(_latestPrice);
+        uint256 currentPrice = latestAnswer(option.oracle);
         if (option.optionType == IOptions.OptionType.Call) {
             require(option.strike <= currentPrice, "Options: Current price is too low");
-            profit = currentPrice-(option.strike)*(option.optionSize)/(option.strike)*(1e9);
+            profit = (currentPrice-option.strike)*(option.optionSize)/(option.strike);
         } else if (option.optionType == IOptions.OptionType.Put) {
             require(option.strike >= currentPrice, "Options: Current price is too high");
-            profit = option.strike-(currentPrice)*(option.optionSize)/(option.strike)*(1e9);
+            profit = (option.strike-currentPrice)*(option.optionSize)/(option.strike);
         }
         if (profit > option.lockedAmount)
             profit = option.lockedAmount;
