@@ -1,6 +1,5 @@
 const HDWalletProvider = require("@truffle/hdwallet-provider")
 require('dotenv').config()
-
 module.exports = {
   networks: {
     development: {
@@ -24,7 +23,7 @@ module.exports = {
       // confirmations: 1,    // # of confs to wait between deployments. (default: 0)
       timeoutBlocks: 200, // # of blocks before a deployment times out  (minimum/default: 50)
       skipDryRun: true, // Skip dry run before migrations? (default: false for public nets )
-      from:"0x1a4037400B5211Dc9881d088252F907B9Ed76169",
+      from:"0xD445D873D0EDc0cD35ff4F61b334df8b7B822b1b",
     },
     ropsten: {
       provider: () =>
@@ -107,7 +106,7 @@ module.exports = {
   // Configure your compilers
   compilers: {
     solc: {
-      version: "0.6.12", // Fetch exact version from solc-bin (default: truffle's version)
+      version: "0.8.6", // Fetch exact version from solc-bin (default: truffle's version)
       // docker: true,        // Use "0.5.1" you've installed locally with docker (default: false)
       settings: {
         // See the solidity docs for advice about optimization and evmVersion

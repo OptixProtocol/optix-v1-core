@@ -4,8 +4,8 @@ pragma solidity 0.8.6;
  *  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-// import "@openzeppelin/contracts/presets/ERC1155PresetMinterPauser.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC1155/presets/ERC1155PresetMinterPauser.sol";
+import "@openzeppelin/contracts/token/ERC1155/presets/ERC1155PresetMinterPauser.sol";
+// import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC1155/presets/ERC1155PresetMinterPauser.sol";
 
 
 contract OptionsLP1155 is ERC1155PresetMinterPauser  {

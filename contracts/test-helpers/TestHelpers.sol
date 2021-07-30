@@ -4,7 +4,7 @@ pragma solidity 0.8.6;
  *  * SPDX-License-Identifier: GPL-3.0-or-later
  */
  
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol";
+
 import "../interfaces/Interfaces.sol"; 
  
 contract FakeUSDC is ERC20("Fake USDC", "USDC") {
