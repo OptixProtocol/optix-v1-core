@@ -64,10 +64,11 @@ interface IFeeCalcs {
 }
 
 interface IOptions {
-    event CreateOption(uint256 indexed id, address indexed account, uint256 indexed poolId, uint256 protocolFee, uint256 poolFee, uint256 totalPremium);
+    event CreateOption(uint256 indexed optionId, address indexed account, uint256 indexed poolId, uint256 protocolFee, uint256 poolFee, uint256 totalPremium);
     event CreatePool(uint indexed poolId, IOracle oracle, IERC20 _collateralToken, IERC20 _hedgeToken, IUniswapV2Factory _swapFactory, IUniswapV2Router02 _swapRouter);
     event UpdateOracle(IOracle indexed oracle, uint indexed poolId, bool enabled); 
-
+    event PoolProfit(uint indexed optionId, uint poolId, uint amount);
+    event PoolLoss(uint indexed optionId, uint poolId, uint amount);
     event Exercise(uint256 indexed optionId, uint poolId, uint256 profit);
     event Expire(uint256 indexed optionId, uint poolId, uint256 premium);
 

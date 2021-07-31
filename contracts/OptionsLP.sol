@@ -183,7 +183,7 @@ contract OptionsLP is AccessControl, IOptions {
      * @nonce calls by Options to lock funds
      * @param amount Amount of funds that should be locked in an option
      */
-    function lock(uint optionId, uint256 optionSize, IFeeCalcs.Fees memory _premium, uint poolId, IOptions.OptionType optionType) public  {
+    function lock(uint optionId, uint256 optionSize, IFeeCalcs.Fees memory _premium, uint poolId, OptionType optionType) public  {
         //   OptionMarket memory market = optionMarkets[poolId];
         require(optionId == lockedCollateral.length, "OptionsLP: Wrong id");
         //   require(
@@ -194,7 +194,7 @@ contract OptionsLP is AccessControl, IOptions {
 
  
         lockedCollateral.push(LockedCollateral(optionSize, _premium.total, true, poolId, optionType));
-        if(optionType == IOptions.OptionType.Put){
+        if(optionType == OptionType.Put){
             lockedCollateralPut[poolId] = lockedCollateralPut[poolId]+optionSize;
         }
         else{
@@ -217,13 +217,12 @@ contract OptionsLP is AccessControl, IOptions {
 
         ll.locked = false;
 
-        if(ll.optionType == IOptions.OptionType.Put)
+        if(ll.optionType == OptionType.Put)
           lockedCollateralPut[ll.poolId] = lockedCollateralPut[ll.poolId]-ll.premium;
         else
           lockedCollateralCall[ll.poolId] = lockedCollateralCall[ll.poolId]-ll.premium;
-        // lockedCollateral[ll.poolId] = lockedCollateral[ll.poolId]-ll.amount;
 
-        // emit Profit(optionId, ll.poolId, ll.premium);
+        emit PoolProfit(optionId, ll.poolId, ll.premium);
     }
 
     /*
@@ -233,27 +232,26 @@ contract OptionsLP is AccessControl, IOptions {
      */
     function send(uint optionId, address payable to, uint256 amount) public {
         LockedCollateral storage ll = lockedCollateral[optionId];
-        // OptionMarket memory market = optionMarkets[ll.poolId];
         require(ll.locked, "OptionsLP: id already unlocked");
         require(to != address(0));
         require(hasRole(CONTRACT_CALLER_ROLE, _msgSender()), "OptionsLP: must have contract caller role");
 
 
         ll.locked = false;
-        if(ll.optionType == IOptions.OptionType.Put)
+        if(ll.optionType == OptionType.Put)
           lockedCollateralPut[ll.poolId] = lockedCollateralPut[ll.poolId]-ll.amount;
         else
           lockedCollateralCall[ll.poolId] = lockedCollateralCall[ll.poolId]-ll.amount;
 
-        // lockedCollateral[ll.poolId] = lockedCollateral[ll.poolId]-ll.amount;
-
         uint transferAmount = amount > ll.amount ? ll.amount : amount;
+
+        //TODO
         // ll.pool.safeTransfer(to, transferAmount);
 
-        // if (transferAmount <= ll.premium)
-        //     emit Profit(optionId, poolId, ll.premium - transferAmount);
-        // else
-        //     emit Loss(optionId, poolId, transferAmount - ll.premium);
+        if (transferAmount <= ll.premium)
+            emit PoolProfit(optionId, ll.poolId, ll.premium - transferAmount);
+        else
+            emit PoolLoss(optionId, ll.poolId, transferAmount - ll.premium);
     }
 
 
@@ -279,7 +277,7 @@ contract OptionsLP is AccessControl, IOptions {
         
         return tokenBalance*2;
 
-        
+        //TODO
         //Considerations
         //in reserves, which token is the collateralToken
         //n option pools to 1 swappool
@@ -380,7 +378,7 @@ contract OptionsLP is AccessControl, IOptions {
     }
     function setOracleEnabled(uint poolId, IOracle _oracle, bool value) external  {
         oracleEnabled[_oracle][poolId] = value; 
-        emit IOptions.UpdateOracle(_oracle, poolId, value);
+        emit UpdateOracle(_oracle, poolId, value);
     }    
     
 }
