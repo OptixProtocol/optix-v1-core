@@ -183,9 +183,9 @@ contract OptionsLP is AccessControl, IOptions {
      * @nonce calls by Options to lock funds
      * @param amount Amount of funds that should be locked in an option
      */
-    function lock(uint id, uint256 amount, IFeeCalcs.Fees memory _premium, uint poolId, IOptions.OptionType optionType) public  {
+    function lock(uint optionId, uint256 optionSize, IFeeCalcs.Fees memory _premium, uint poolId, IOptions.OptionType optionType) public  {
         //   OptionMarket memory market = optionMarkets[poolId];
-        require(id == lockedCollateral.length, "OptionsLP: Wrong id");
+        require(optionId == lockedCollateral.length, "OptionsLP: Wrong id");
         //   require(
         //         lockedAmount[swapPair[poolId]].add(amount) <= totalBalance(swapPair[poolId]),
         //         "OptionsLP: Amount is too large."
@@ -193,16 +193,16 @@ contract OptionsLP is AccessControl, IOptions {
         require(hasRole(CONTRACT_CALLER_ROLE, _msgSender()), "OptionsLP: must have contract caller role");
 
  
-        lockedCollateral.push(LockedCollateral(amount, _premium.total, true, poolId, optionType));
+        lockedCollateral.push(LockedCollateral(optionSize, _premium.total, true, poolId, optionType));
         if(optionType == IOptions.OptionType.Put){
-            lockedCollateralPut[poolId] = lockedCollateralPut[poolId]+_premium.total;
+            lockedCollateralPut[poolId] = lockedCollateralPut[poolId]+optionSize;
         }
         else{
-            lockedCollateralCall[poolId] = lockedCollateralCall[poolId]+_premium.total;
+            lockedCollateralCall[poolId] = lockedCollateralCall[poolId]+optionSize;
         }
-        // lockedCollateral[poolId] = lockedCollateral[poolId]+_premium.total;
-        collateralReserves[poolId] = collateralReserves[poolId] + _premium.total-_premium.protocolFee-_premium.poolFee;
 
+        //add the premium less the protocol & pool fees
+        collateralReserves[poolId] = collateralReserves[poolId] + _premium.total-_premium.protocolFee-_premium.poolFee;
     }
     
     /*

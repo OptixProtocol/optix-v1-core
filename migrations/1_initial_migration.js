@@ -11,15 +11,18 @@ module.exports = async function (deployer, network, [account]) {
     // if (["development", "develop", 'soliditycoverage'].indexOf(network) >= 0) {
     await deployer.deploy(SwapPool);
     deployer.link(SwapPool, [OptionsLP]);
-    const a = await deployer.deploy(OptionsLP1155, poolUrl, commitHash);
-    const b = await deployer.deploy(OptionsLP, OptionsLP1155.address, commitHash);
-    const c = await deployer.deploy(Options,
+    const lp1155 = await deployer.deploy(OptionsLP1155, poolUrl, commitHash);
+    const lp = await deployer.deploy(OptionsLP, OptionsLP1155.address, commitHash);
+    const opt = await deployer.deploy(Options,
         "0xD445D873D0EDc0cD35ff4F61b334df8b7B822b1b",
         OptionsLP.address,
         "Optyn Contract",
         "OptynContract",            
         commitHash
     )
+
+    await lp1155.grantRole(await lp1155.MINTER_ROLE(), OptionsLP.address);
+    await lp.grantRole(await lp.CONTRACT_CALLER_ROLE(), Options.address);
   // };
 }
 

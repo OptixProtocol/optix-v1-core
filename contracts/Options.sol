@@ -287,7 +287,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs, IOptions {
         }
         if (profit > option.lockedAmount)
             profit = option.lockedAmount;
-        // optionsLP.send(optionID, option.holder, option.marketId, profit);
+        optionsLP.send(optionID, option.holder, option.marketId, profit);
     }
 
     
