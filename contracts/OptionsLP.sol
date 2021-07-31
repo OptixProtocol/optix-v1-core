@@ -241,9 +241,9 @@ contract OptionsLP is AccessControl, IOptions {
 
         ll.locked = false;
         if(ll.optionType == IOptions.OptionType.Put)
-          lockedCollateralPut[ll.poolId] = lockedCollateralPut[ll.poolId]-ll.premium;
+          lockedCollateralPut[ll.poolId] = lockedCollateralPut[ll.poolId]-ll.amount;
         else
-          lockedCollateralCall[ll.poolId] = lockedCollateralCall[ll.poolId]-ll.premium;
+          lockedCollateralCall[ll.poolId] = lockedCollateralCall[ll.poolId]-ll.amount;
 
         // lockedCollateral[ll.poolId] = lockedCollateral[ll.poolId]-ll.amount;
 
