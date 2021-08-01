@@ -182,7 +182,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs, IOptions {
      * @return optionID Created option's ID
      */
     function create(
-        address payable account,
+        address payable holder,
         uint256 period,
         uint256 optionSize,
         uint256 strike,
@@ -202,21 +202,21 @@ contract Options is ERC721, AccessControl, IFeeCalcs, IOptions {
         (Fees memory _premium) = premium(period, optionSize, strike, optionType, poolId, oracle);
         
         optionID = options.length;        
-        Option memory option = _createOption(account,period,optionSize,strike,optionType,poolId,oracle,_premium); 
+        Option memory option = _createOption(holder,period,optionSize,strike,optionType,poolId,oracle,_premium); 
 
-        optionsLP.collateralToken(poolId).transferFrom(account, address(protocolFeeRecipient), _premium.protocolFee);
-        optionsLP.collateralToken(poolId).transferFrom(account, optionsLP.poolOwner(poolId), _premium.poolFee);
-        optionsLP.collateralToken(poolId).transferFrom(account, address(optionsLP),  _premium.total-_premium.protocolFee-_premium.poolFee);
+        optionsLP.collateralToken(poolId).transferFrom(holder, address(protocolFeeRecipient), _premium.protocolFee);
+        optionsLP.collateralToken(poolId).transferFrom(holder, optionsLP.poolOwner(poolId), _premium.poolFee);
+        optionsLP.collateralToken(poolId).transferFrom(holder, address(optionsLP),  _premium.total-_premium.protocolFee-_premium.poolFee);
 
         optionsLP.lock(optionID, option.lockedAmount, _premium, poolId, optionType);
         
         options.push(option);
-        _safeMint(account, optionID);
+        _safeMint(holder, optionID);
         
-        emit CreateOption(optionID, account, poolId, _premium.protocolFee, _premium.poolFee, _premium.total);
+        emit CreateOption(optionID, holder, period, optionSize, strike, optionType, poolId, oracle, _premium.protocolFee, _premium.poolFee, _premium.total);
     }
     
-      function _createOption(address payable account, 
+      function _createOption(address payable holder, 
         uint256 period,
         uint256 optionSize,
         uint256 strike,
@@ -227,7 +227,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs, IOptions {
         // uint optPremium = (_premium.total.sub(_premium.protocolFee));
         option = Option(
            State.Active,
-            account,
+            holder,
             strike,
             optionSize,
             optionSize*10000/(optionsLP.collateralizationRatio(poolId)),
