@@ -11,7 +11,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs, IOptions {
     using SafeERC20 for IERC20;
     
     Option[] public options;
-    OptionsLP optionsLP;
+    OptionsLP public optionsLP;
     address public protocolFeeRecipient;
     // IFeeCalcs public feeCalcs;
     
