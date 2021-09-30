@@ -7,6 +7,34 @@ pragma solidity 0.8.6;
 
 import "../interfaces/Interfaces.sol"; 
  
+contract Oracle is IOracle {
+      function decimals()
+    external
+    view
+    override 
+    returns (
+      uint8
+    ){}
+
+  function description()
+    external
+    view
+    override 
+    returns (
+      string memory
+    ){}
+
+  function latestAnswer()
+    external
+    view
+    override 
+    returns (
+      uint256
+    ){
+
+    }
+}
+
 contract FakeUSDC is ERC20("Fake USDC", "USDC") {
     function mintTo(address account, uint256 amount) public {
         _mint(account, amount);

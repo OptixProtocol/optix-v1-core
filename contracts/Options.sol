@@ -71,7 +71,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs, IOptions {
         )
     {
         IFeeCalcs feeCalcs = (address(optionsLP.poolFeeCalc(poolId))==address(0))? this : optionsLP.poolFeeCalc(poolId);
-        uint256 latestPrice = optionsLP.oracle(poolId).latestAnswer();
+        uint256 latestPrice = latestAnswer(oracle);
         _fees.protocolFee = feeCalcs.getProtocolFee(period, optionSize, strike, latestPrice, optionType, poolId, oracle);
         _fees.strikeFee = feeCalcs.getStrikeFee(period, optionSize, strike, latestPrice, optionType, poolId, oracle);
         _fees.periodFee = feeCalcs.getPeriodFee(period, optionSize, strike, latestPrice, optionType, poolId, oracle);
