@@ -213,7 +213,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs, IOptions {
         options.push(option);
         _safeMint(holder, optionID);
         
-        emit CreateOption(optionID, holder, period, optionSize, strike, optionType, poolId, oracle, _premium.protocolFee, _premium.poolFee, _premium.total);
+        emit CreateOption(optionID, holder, option.expiration, optionSize, strike, optionType, poolId, oracle, _premium.protocolFee, _premium.poolFee, _premium.total);
     }
     
       function _createOption(address payable holder, 
