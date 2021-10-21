@@ -319,7 +319,7 @@ contract Options is ERC721, AccessControl, IFeeCalcs, IOptions {
         require(option.state == State.Active, "Options: Option is not active");
         option.state = State.Expired;
         optionsLP.unlock(optionID);
-        // emit Expire(optionID, option.marketId, option.premium);
+        emit Expire(optionID, option.poolId, option.premium);
       }
 
 
