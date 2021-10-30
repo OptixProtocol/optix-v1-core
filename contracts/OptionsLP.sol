@@ -83,6 +83,7 @@ contract OptionsLP is AccessControl, IOptions {
     }
     
    function createPool(IOracle _oracle, IERC20 _collateralToken, IERC20 _hedgeToken, IUniswapV2Factory _swapFactory, IUniswapV2Router02 _swapRouter) public {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "OptionsLP: must have admin role");
         oracle[poolCount] = _oracle;
         collateralToken[poolCount] = _collateralToken;
         hedgeToken[poolCount] = _hedgeToken;
@@ -344,39 +345,51 @@ contract OptionsLP is AccessControl, IOptions {
 
   
     function setPoolOwner(uint poolId, address value) external  {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "OptionsLP: must have admin role");
         poolOwner[poolId] = value;
     }
     function setPoolOperator(uint poolId, address value) external  {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "OptionsLP: must have admin role");
         poolOperator[poolId] = value;
     }
     function setPoolFeeCalc(uint poolId, IFeeCalcs value) external  {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "OptionsLP: must have admin role");
         poolFeeCalc[poolId] = value;
     }   
     function setPoolFee(uint poolId, uint256 value) external  {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "OptionsLP: must have admin role");
         poolFee[poolId] = value;
     }   
     function setIpfsHash(uint poolId, string memory value) external  {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "OptionsLP: must have admin role");
         ipfsHash[poolId] = value;
     }  
     function setReadOnly(uint poolId, bool value) external  {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "OptionsLP: must have admin role");
         readOnly[poolId] = value;
     }
     function setMaxInvest(uint poolId, uint256 value) external  {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "OptionsLP: must have admin role");
         maxInvest[poolId] = value;
     }   
     function setPeriodMin(uint poolId, uint256 value) external  {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "OptionsLP: must have admin role");
         periodMin[poolId] = value;
     }   
     function setPeriodMax(uint poolId, uint256 value) external  {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "OptionsLP: must have admin role");
         periodMax[poolId] = value;
     }   
     function setLockupPeriod(uint poolId, uint256 value) external  {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "OptionsLP: must have admin role");
         lockupPeriod[poolId] = value;
     }   
     function setCollaterizationRatio(uint poolId, uint256 value) external  {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "OptionsLP: must have admin role");
         collateralizationRatio[poolId] = value;
     }
     function setOracleEnabled(uint poolId, IOracle _oracle, bool value) external  {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "OptionsLP: must have admin role");
         oracleEnabled[_oracle][poolId] = value; 
         emit UpdateOracle(_oracle, poolId, value);
     }    

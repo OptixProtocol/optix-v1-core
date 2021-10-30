@@ -23,8 +23,41 @@ module.exports = async function (deployer, network, [account]) {
 
     await lp1155.grantRole(await lp1155.MINTER_ROLE(), OptionsLP.address);
     await lp.grantRole(await lp.CONTRACT_CALLER_ROLE(), Options.address);
-  // };
-}
+    // switch (network) {
+    //   case "rinkeby": {
+
+        //0xECe365B379E1dD183B20fc5f022230C044d51404 BTC
+        // IOracle _oracle, IERC20 _collateralToken, IERC20 _hedgeToken, IUniswapV2Factory _swapFactory, IUniswapV2Router02 _swapRouter) public {
+        await lp.createPool("0xECe365B379E1dD183B20fc5f022230C044d51404","0xDF171B622CEF319fbe31358A817e85bE3642e990","0xCA6759a88Ee3498aD2354261DCf8A0eEe7Aee797","0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f","0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D")
+        await lp.setOracleEnabled(0,"0x3539F2E214d8BC7E611056383323aC6D1b01943c",1); //0x3539F2E214d8BC7E611056383323aC6D1b01943c ATOM
+        await lp.setOracleEnabled(0,"0x21c095d2aDa464A294956eA058077F14F66535af",1); // AUD
+        await lp.setOracleEnabled(0,"0x031dB56e01f82f20803059331DC6bEe9b17F7fC9",1); // BAT
+        await lp.setOracleEnabled(0,"0xcf0f51ca2cDAecb464eeE4227f5295F2384F84ED",1); // BNB
+        await lp.setOracleEnabled(0,"0x5e601CF5EF284Bcd12decBDa189479413284E1d2",1); // CHF
+        await lp.setOracleEnabled(0,"0x8A753747A1Fa494EC906cE90E9f37563A8AF630e",1); // ETH
+        await lp.setOracleEnabled(0,"0x78F9e60608bF48a1155b4B2A5e31F32318a1d85F",1); // EUR
+        await lp.setOracleEnabled(0,"0x7B17A813eEC55515Fb8F49F2ef51502bC54DD40F",1); // GBP
+        await lp.setOracleEnabled(0,"0x3Ae2F46a2D84e3D5590ee6Ee5116B80caF77DeCA",1); // JPY
+        await lp.setOracleEnabled(0,"0xd8bD0a1cB028a31AA859A21A3758685a95dE4623",1); // LINK
+        await lp.setOracleEnabled(0,"0x4d38a35C2D87976F334c2d2379b535F1D461D9B4",1); // LTC
+        await lp.setOracleEnabled(0,"0x7794ee502922e2b723432DDD852B3C30A911F021",1); // MATIC
+        await lp.setOracleEnabled(0,"0x6292aA9a6650aE14fbf974E5029f36F95a1848Fd",1); // OIL
+        await lp.setOracleEnabled(0,"0x9331b55D9830EF609A2aBCfAc0FBCE050A52fdEa",1); // REP
+        await lp.setOracleEnabled(0,"0xE96C4407597CD507002dF88ff6E0008AB41266Ee",1); // SNX
+        await lp.setOracleEnabled(0,"0xb29f616a0d54FF292e997922fFf46012a63E2FAe",1); // TRX
+        await lp.setOracleEnabled(0,"0x9c1946428f4f159dB4889aA6B218833f467e1BfD",1); // XAG
+        await lp.setOracleEnabled(0,"0x81570059A0cb83888f1459Ec66Aad1Ac16730243",1); // XAU
+        await lp.setOracleEnabled(0,"0xc3E76f41CAbA4aB38F00c7255d4df663DA02A024",1); // XRP
+        await lp.setOracleEnabled(0,"0xf57FCa8B932c43dFe560d3274262b2597BCD2e5A",1); // XTZ
+        await lp.setOracleEnabled(0,"0xF7Bbe4D7d13d600127B6Aa132f1dCea301e9c8Fc",1); // ZRX
+        await lp.setOracleEnabled(0,"0x1a602D4928faF0A153A520f58B332f9CAFF320f7",1); // sCEX
+        await lp.setOracleEnabled(0,"0x0630521aC362bc7A19a4eE44b57cE72Ea34AD01c",1); // sDEFI 
+
+
+        // "0xd8bD0a1cB028a31AA859A21A3758685a95dE4623","0xDF171B622CEF319fbe31358A817e85bE3642e990","0xCA6759a88Ee3498aD2354261DCf8A0eEe7Aee797","0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f","0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
+      }
+    // }
+// }
 
 
 
