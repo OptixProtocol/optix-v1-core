@@ -5,14 +5,23 @@ pragma solidity 0.8.6;
  */
 
 // Rinkeby
-//  payoutToken USDC(Fake) = 0xDF171B622CEF319fbe31358A817e85bE3642e990
-//  principalToken MATIC(Fake) = 0xCA6759a88Ee3498aD2354261DCf8A0eEe7Aee797
+//  payOutToken MATIC(Fake) = 0xCA6759a88Ee3498aD2354261DCf8A0eEe7Aee797
+//  payInToken USDC(Fake) = 0xDF171B622CEF319fbe31358A817e85bE3642e990
+//  payInToken WETH(Fake) = 0x58194288A4B15008F800dB474ACcAb134879b577
+//  payInToken WBTC(Fake) = 0xe35C17Fe56F2F9052476588B635519184f740Fe3
 
-//  1000 MATIC
-// NewIssuance: "0xDF171B622CEF319fbe31358A817e85bE3642e990","0xCA6759a88Ee3498aD2354261DCf8A0eEe7Aee797","1000000000000000000000"
+// USDC, 1000 MATIC
+// NewIssuance 1: "0xDF171B622CEF319fbe31358A817e85bE3642e990","0xCA6759a88Ee3498aD2354261DCf8A0eEe7Aee797","1000000000000000000000"
+
+// WETH, 1000 MATIC
+// NewIssuance 2: "0x58194288A4B15008F800dB474ACcAb134879b577","0xCA6759a88Ee3498aD2354261DCf8A0eEe7Aee797","1000000000000000000000"
+
+// WBTC, 1000 MATIC
+// NewIssuance 3: "0xe35C17Fe56F2F9052476588B635519184f740Fe3","0xCA6759a88Ee3498aD2354261DCf8A0eEe7Aee797","1000000000000000000000"
+
 
 // Buy bond
-// "0xDF171B622CEF319fbe31358A817e85bE3642e990","0xCA6759a88Ee3498aD2354261DCf8A0eEe7Aee797","0","1000000000000000000000","1000000000000000000000000000","0xD445D873D0EDc0cD35ff4F61b334df8b7B822b1b"
+// "0","1000000000000000000000","1000000000000000000000000000","0xD445D873D0EDc0cD35ff4F61b334df8b7B822b1b"
 
 // bondIssuance
 // "0xDF171B622CEF319fbe31358A817e85bE3642e990","0xCA6759a88Ee3498aD2354261DCf8A0eEe7Aee797","0"
@@ -26,10 +35,10 @@ contract OptynBond  {
     using SafeERC20 for IERC20;
 
     /* ======== EVENTS ======== */
-    event IssuanceCreated( IERC20 payoutToken, IERC20 principalToken, uint _amount, uint issuanceId );
+    event IssuanceCreated( IERC20 payOutToken, IERC20 payInToken, uint _amount, uint issuanceId );
     event BondCreated( address despsitor, uint deposit, uint payout, uint expires, uint bondId );
     event BondRedeemed( uint bondId, uint payout, uint remaining );
-    event BondPriceChanged( uint internalPrice, uint debtRatio );
+    // event BondPriceChanged( uint internalPrice, uint debtRatio );
     event ControlVariableAdjustment( uint initialBCV, uint newBCV, uint adjustment, bool addition );
     
      /* ======== STATE VARIABLES ======== */
@@ -40,14 +49,14 @@ contract OptynBond  {
     /* ======== STRUCTS ======== */
 
     struct Issuance {
-        IERC20 payoutToken;
-        IERC20 principalToken;        
+        IERC20 payOutToken;
+        IERC20 payInToken;        
         address owner;
         address treasury;
-        uint principalAvailable; //how much can be issued
-        uint principalBonded; //how much as been bonded
+        uint payOutTokenAvailable; //how much can be issued
+        uint payOutTokenBonded; //how much as been bonded
         uint vestingTerm; // in blocks
-        uint minimumPrice; // vs principal value
+        uint minimumPrice; // vs payIn value
         uint startingPrice;
         uint startAt;
         uint expiresAt;
@@ -60,7 +69,7 @@ contract OptynBond  {
         uint payout; // payout token remaining to be paid
         uint vesting; // Blocks left to vest
         uint lastBlock; // Last interaction
-        uint truePricePaid; // Price paid (principal tokens per payout token) in ten-millionths - 4000000 = 0.4
+        uint truePricePaid; // Price paid (payIn tokens per payOut token) in ten-millionths - 4000000 = 0.4
         address depositor; //
     }
 
@@ -69,36 +78,40 @@ contract OptynBond  {
  
     }
 
-    function newIssuance(IERC20 payoutToken, IERC20 principalToken, uint _principalAvailable) public {
-        require( _principalAvailable <= principalToken.balanceOf(msg.sender), "Not enough balance" );
+    function newIssuance(IERC20 payInToken, IERC20 payOutToken, uint _payOutTokenAvailable) public {
+        require( _payOutTokenAvailable <= payOutToken.balanceOf(msg.sender), "Not enough balance" );
 
-        Issuance storage issuance = issuances[issuances.length];
-        issuance.payoutToken = payoutToken;
-        issuance.principalToken = principalToken;
-        issuance.owner = msg.sender;
-        issuance.treasury = msg.sender;
-        issuance.principalAvailable = _principalAvailable;
-        issuance.vestingTerm = 5 days;
-        issuance.startingPrice = 100000;
-        issuance.startAt = block.timestamp;
-        issuance.expiresAt = block.timestamp + 7 days;
-        issuance.priceDeductionRate = 50;      
+      Issuance memory issuance = Issuance(
+          payOutToken,
+          payInToken,
+          msg.sender,                   //owner
+          msg.sender,                   //treasury
+          _payOutTokenAvailable,
+          0,                            //payoutTokenBonded
+          5 days,                       //vestingTerm
+          100000,                       //mimiumPrice
+          200000,                       //startingPrice
+          block.timestamp,              //startsAt
+          block.timestamp + 30 days,    //expiresAt
+          50                            //priceDeductionRate
+        );
+        issuances.push(issuance);
 
-        emit IssuanceCreated( payoutToken, principalToken, _principalAvailable, issuances.length);
+        emit IssuanceCreated( payOutToken, payInToken, _payOutTokenAvailable, issuances.length);
     }
 
-    function buyBond(IERC20 payoutToken, IERC20 principalToken, uint issuanceId, uint _principalAmount, uint _maxPrice, address _depositor) external returns (uint) {
-        require( _principalAmount <= principalToken.balanceOf(issuances[issuanceId].treasury), "Not enough treasury balance" );
-        require( _principalAmount <= issuances[issuanceId].principalAvailable-issuances[issuanceId].principalBonded, "Not enough issuance balance" );
+    function buyBond(uint issuanceId, uint payInAmount, uint _maxPrice, address _depositor) external returns (uint) {
+        require( payInAmount <= issuances[issuanceId].payInToken.balanceOf(issuances[issuanceId].treasury), "Not enough treasury balance" );
+        require( payInAmount <= issuances[issuanceId].payOutTokenAvailable-issuances[issuanceId].payOutTokenBonded, "Not enough issuance balance" );
 
         // depositor info is stored
-        uint payout = _payoutFor( issuanceId, _principalAmount ); // payout to bonder is computed
+        uint payout = payoutFor( issuanceId, payInAmount ); // payout to bonder is computed
 
         uint fee = 0;
 
-        // transfer the principal & payout to the contract 
-        principalToken.safeTransferFrom( msg.sender, address(this), _principalAmount );
-        payoutToken.safeTransferFrom( issuances[issuanceId].treasury, address(this), payout );
+        // transfer the payin & payout to the contract 
+        issuances[issuanceId].payInToken.safeTransferFrom( _depositor, address(this), payInAmount );
+        issuances[issuanceId].payOutToken.safeTransferFrom( issuances[issuanceId].treasury, address(this), payout );
 
 
         // // depositor info is stored
@@ -112,8 +125,8 @@ contract OptynBond  {
         });
         bonds.push(bond);
 
-        emit BondCreated( _depositor, _principalAmount, payout, block.number + issuances[issuanceId].vestingTerm, bonds.length-1 );
-        issuances[issuanceId].principalBonded = issuances[issuanceId].principalBonded + _principalAmount; // total bonded increased
+        emit BondCreated( _depositor, payInAmount, payout, block.number + issuances[issuanceId].vestingTerm, bonds.length-1 );
+        issuances[issuanceId].payOutTokenBonded = issuances[issuanceId].payOutTokenBonded + payInAmount; // total bonded increased
 
         return payout;
     }
@@ -125,7 +138,7 @@ contract OptynBond  {
         if ( percentVested >= 10000 ) { // if fully vested
             delete bonds[ bondId ]; // delete bond info
             emit BondRedeemed( bondId, bond.payout, 0 ); // emit bond data
-            issuances[bonds[ bondId ].issuanceId].payoutToken.transfer( bonds[ bondId ].depositor, bond.payout );
+            issuances[bonds[ bondId ].issuanceId].payOutToken.transfer( bonds[ bondId ].depositor, bond.payout );
             return bond.payout;
 
         } else { // if unfinished
@@ -143,7 +156,7 @@ contract OptynBond  {
             });
 
             emit BondRedeemed( bondId, payout, bonds[ bondId ].payout );
-            issuances[bonds[ bondId ].issuanceId].payoutToken.transfer( bonds[ bondId ].depositor, payout );
+            issuances[bonds[ bondId ].issuanceId].payOutToken.transfer( bonds[ bondId ].depositor, payout );
             return payout;
         }
         
@@ -152,18 +165,29 @@ contract OptynBond  {
 
     /* ======== POLICY FUNCTIONS ======== */
 
-    enum PARAMETER { VESTING, PAYOUT, DEBT }
+    enum PARAMETER { VESTING, AVAILABLE, STARTING_PRICE, MINIMUM_PRICE }
     /**
      *  @notice set parameters for new bonds
      *  @param _parameter PARAMETER
      *  @param _input uint
      */
-    // function setBondTerms ( PARAMETER _parameter, uint _input ) external onlyPolicy() {
-    //     if ( _parameter == PARAMETER.VESTING ) { // 0
-    //         require( _input >= 10000, "Vesting must be longer than 36 hours" );
-    //         terms.vestingTerm = _input;
-    //     };
-    // }
+    function setBondTerms ( uint _issuanceId, PARAMETER _parameter, uint _input ) external {
+
+        if ( _parameter == PARAMETER.VESTING ) { // 0
+            // require( _input >= 10000, "Vesting must be longer than 36 hours" );
+            issuances[_issuanceId].vestingTerm = _input;
+        }
+        if ( _parameter == PARAMETER.AVAILABLE ) { // 1
+            require( _input <= issuances[_issuanceId].payOutToken.balanceOf(msg.sender), "Not enough balance" );
+            issuances[_issuanceId].payOutTokenAvailable = _input;
+        }
+        if ( _parameter == PARAMETER.STARTING_PRICE ) { // 2
+            issuances[_issuanceId].startingPrice = _input;
+        }
+        if ( _parameter == PARAMETER.MINIMUM_PRICE ) { // 3
+            issuances[_issuanceId].minimumPrice = _input;
+        }        
+    }
 
      /* ======== VIEW FUNCTIONS ======== */
 
@@ -171,7 +195,8 @@ contract OptynBond  {
      *  @notice calculate current bond premium
      *  @return price_ uint
      */
-    function bondPrice(uint issuanceId) public view returns ( uint price_ ) {    
+    function bondPrice(uint issuanceId) public view returns ( uint price_ ) {   
+         
         uint timeElapsed = block.timestamp - issuances[issuanceId].startAt;    
         uint deduction = issuances[issuanceId].priceDeductionRate * timeElapsed;
         price_ = issuances[issuanceId].startingPrice - deduction;
@@ -197,7 +222,7 @@ contract OptynBond  {
         }
     }
 
-    function _payoutFor( uint issuanceId, uint _principalAmount ) internal view returns ( uint ) {
-        return bondPrice(issuanceId)/_principalAmount;
+    function payoutFor( uint issuanceId, uint payInAmount ) public view returns ( uint ) {
+        return bondPrice(issuanceId)/payInAmount;
     }
 }
