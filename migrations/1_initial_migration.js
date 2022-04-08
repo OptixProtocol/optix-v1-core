@@ -1,6 +1,6 @@
 let commitHash = require('child_process').execSync('git rev-parse HEAD').toString();
-let poolUrl = "https://optyn.co/api/pool/{id}.​json"
-let optionUrl = "https://optyn.co/api/option/{id}.​json"
+let poolUrl = "https://optixprotocol.com/api/pool/{id}.​json"
+let optionUrl = "https://optixprotocol.com/api/option/{id}.​json"
 
 const SwapPool = artifacts.require("SwapPool")
 const OptionsLP1155 = artifacts.require("OptionsLP1155")
@@ -16,8 +16,8 @@ module.exports = async function (deployer, network, [account]) {
     const opt = await deployer.deploy(Options,
         "0xD445D873D0EDc0cD35ff4F61b334df8b7B822b1b",
         OptionsLP.address,
-        "Optyn Contract",
-        "OptynContract",            
+        "Optix Contract",
+        "OptixContract",            
         commitHash
     )
 

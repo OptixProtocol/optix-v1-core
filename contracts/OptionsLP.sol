@@ -29,7 +29,7 @@ import "./OptionsLP1155.sol";
 //  withdraw : "0xD445D873D0EDc0cD35ff4F61b334df8b7B822b1b","0","1000000000000000000000000000"
 
 // Buy Option 
-// options.deploy: "0xD445D873D0EDc0cD35ff4F61b334df8b7B822b1b","0xeacED67cE6b60e0f31A2A530B1245221868417c7","Optyn","OPTYN","asdlfjldksfj"
+// options.deploy: "0xD445D873D0EDc0cD35ff4F61b334df8b7B822b1b","0xeacED67cE6b60e0f31A2A530B1245221868417c7","Optix","OPTIX","asdlfjldksfj"
 // optionsLP.grantRole: give contract caller role to options 
 // USDC.approve: approve options 
 // options.fees: "86400","1000000000","1816780025","1","0","0xd8bD0a1cB028a31AA859A21A3758685a95dE4623"
@@ -118,7 +118,7 @@ contract OptionsLP is AccessControl, IOptions {
 
 
  /*
-     * @nonce A provider supplies token to the pool and receives optynLP1155 tokens
+     * @nonce A provider supplies token to the pool and receives optix LP1155 tokens
      * @param account account who will be the owner of the minted tokens 
      * @param poolId Pool to provide to 
      * @param minMint Minimum amount of tokens that should be received by a provider.

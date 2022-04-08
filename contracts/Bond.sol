@@ -31,7 +31,7 @@ import "./interfaces/Interfaces.sol";
 
 
 
-contract OptynBond  {
+contract Bond  {
     using SafeERC20 for IERC20;
 
     /* ======== EVENTS ======== */
