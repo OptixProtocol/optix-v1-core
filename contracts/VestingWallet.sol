@@ -195,7 +195,7 @@ contract VestingWallet is Ownable {
         VestingSchedule storage vestingSchedule = schedules[msg.sender];
 
         uint totalAmountVested = getTotalAmountVested(vestingSchedule);
-        uint amountWithdrawable = totalAmountVested - vestingSchedule.totalAmountWithdrawn + vestingSchedule.unlockAmount;
+        uint amountWithdrawable = totalAmountVested - vestingSchedule.totalAmountWithdrawn;
         vestingSchedule.totalAmountWithdrawn = totalAmountVested;
 
         if (amountWithdrawable > 0) {
@@ -284,8 +284,10 @@ contract VestingWallet is Ownable {
         uint timeSinceStartInSec = blockTimestamp() - vestingSchedule.startTimeInSec;
         uint totalVestingTimeInSec = vestingSchedule.endTimeInSec - vestingSchedule.startTimeInSec;
         uint totalAmountVested = (timeSinceStartInSec * vestingSchedule.totalAmount)/totalVestingTimeInSec;
-    
-        return totalAmountVested;
+        if (totalAmountVested+vestingSchedule.unlockAmount > vestingSchedule.totalAmount)
+            return vestingSchedule.totalAmount;
+        else 
+            return totalAmountVested + vestingSchedule.unlockAmount;
     }
 
     function blockTimestamp() public view returns (uint) {
