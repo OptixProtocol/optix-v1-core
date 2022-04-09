@@ -15,6 +15,8 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contr
 
 contract VestingWallet is Ownable {
 
+    uint _blockTimestamp;
+
     mapping(address => VestingSchedule) public schedules;        // vesting schedules for given addresses
     mapping(address => address) public addressChangeRequests;    // requested address changes
 
@@ -26,6 +28,7 @@ contract VestingWallet is Ownable {
         uint startTimeInSec,
         uint cliffTimeInSec,
         uint endTimeInSec,
+        uint unlockAmount, 
         uint totalAmount
     );
     event VestingScheduleConfirmed(
@@ -34,6 +37,7 @@ contract VestingWallet is Ownable {
         uint startTimeInSec,
         uint cliffTimeInSec,
         uint endTimeInSec,
+        uint unlockAmount,
         uint totalAmount
     );
     event Withdrawal(address indexed registeredAddress, uint amountWithdrawn);
@@ -45,6 +49,7 @@ contract VestingWallet is Ownable {
         uint startTimeInSec;
         uint cliffTimeInSec;
         uint endTimeInSec;
+        uint unlockAmount;
         uint totalAmount;
         uint totalAmountWithdrawn;
         address depositor;
@@ -53,47 +58,47 @@ contract VestingWallet is Ownable {
 
     modifier addressRegistered(address target) {
         VestingSchedule storage vestingSchedule = schedules[target];
-        require(vestingSchedule.depositor != address(0));
+        require(vestingSchedule.depositor != address(0),"vestingSchedule.depositor != address(0)");
         _;
     }
 
     modifier addressNotRegistered(address target) {
         VestingSchedule storage vestingSchedule = schedules[target];
-        require(vestingSchedule.depositor == address(0));
+        require(vestingSchedule.depositor == address(0),"vestingSchedule.depositor == address(0)");
         _;
     }
 
     modifier vestingScheduleConfirmed(address target) {
         VestingSchedule storage vestingSchedule = schedules[target];
-        require(vestingSchedule.isConfirmed);
+        require(vestingSchedule.isConfirmed,"vestingSchedule.isConfirmed");
         _;
     }
 
     modifier vestingScheduleNotConfirmed(address target) {
         VestingSchedule storage vestingSchedule = schedules[target];
-        require(!vestingSchedule.isConfirmed);
+        require(!vestingSchedule.isConfirmed,"!vestingSchedule.isConfirmed");
         _;
     }
 
     modifier pendingAddressChangeRequest(address target) {
-        require(addressChangeRequests[target] != address(0));
+        require(addressChangeRequests[target] != address(0),"addressChangeRequests[target] != address(0)");
         _;
     }
 
     modifier pastCliffTime(address target) {
         VestingSchedule storage vestingSchedule = schedules[target];
-        require(block.timestamp > vestingSchedule.cliffTimeInSec);
+        require(blockTimestamp() > vestingSchedule.cliffTimeInSec,"blockTimestamp() > vestingSchedule.cliffTimeInSec");
         _;
     }
 
     modifier validVestingScheduleTimes(uint startTimeInSec, uint cliffTimeInSec, uint endTimeInSec) {
-        require(cliffTimeInSec >= startTimeInSec);
-        require(endTimeInSec >= cliffTimeInSec);
+        require(cliffTimeInSec >= startTimeInSec,"cliffTimeInSec >= startTimeInSec");
+        require(endTimeInSec >= cliffTimeInSec,"endTimeInSec >= cliffTimeInSec");
         _;
     }
 
     modifier addressNotNull(address target) {
-        require(target != address(0));
+        require(target != address(0),"target != address(0)");
         _;
     }
 
@@ -104,15 +109,7 @@ contract VestingWallet is Ownable {
     }
 
 
-  function registerVestingSchedule(
-        address _addressToRegister,
-        address _depositor,
-        uint _endTimeInSec,
-        uint _totalAmount
-    )        public   
-    {
-        registerVestingSchedule(_addressToRegister, _depositor, block.timestamp, block.timestamp,_endTimeInSec,_totalAmount);        
-    }
+
 
     /// @dev Registers a vesting schedule to an address.
     /// @param _addressToRegister The address that is allowed to withdraw vested tokens for this schedule.
@@ -120,6 +117,7 @@ contract VestingWallet is Ownable {
     /// @param _startTimeInSec The time in seconds that vesting began.
     /// @param _cliffTimeInSec The time in seconds that tokens become withdrawable.
     /// @param _endTimeInSec The time in seconds that vesting ends.
+    /// @param _unlockAmount The amount of tokens initially released 
     /// @param _totalAmount The total amount of tokens that the registered address can withdraw by the end of the vesting period.
     function registerVestingSchedule(
         address _addressToRegister,
@@ -127,6 +125,7 @@ contract VestingWallet is Ownable {
         uint _startTimeInSec,
         uint _cliffTimeInSec,
         uint _endTimeInSec,
+        uint _unlockAmount,
         uint _totalAmount
     )
         public
@@ -139,6 +138,7 @@ contract VestingWallet is Ownable {
             startTimeInSec: _startTimeInSec,
             cliffTimeInSec: _cliffTimeInSec,
             endTimeInSec: _endTimeInSec,
+            unlockAmount: _unlockAmount,
             totalAmount: _totalAmount,
             totalAmountWithdrawn: 0,
             depositor: _depositor,
@@ -151,42 +151,38 @@ contract VestingWallet is Ownable {
             _startTimeInSec,
             _cliffTimeInSec,
             _endTimeInSec,
+            _unlockAmount,
             _totalAmount
         );
     }
 
     /// @dev Confirms a vesting schedule and deposits necessary tokens. Throws if deposit fails or schedules do not match.
-    /// @param _startTimeInSec The time in seconds that vesting began.
-    /// @param _cliffTimeInSec The time in seconds that tokens become withdrawable.
-    /// @param _endTimeInSec The time in seconds that vesting ends.
-    /// @param _totalAmount The total amount of tokens that the registered address can withdraw by the end of the vesting period.
+    /// @param _address The address to be confirmed
     function confirmVestingSchedule(
-        uint _startTimeInSec,
-        uint _cliffTimeInSec,
-        uint _endTimeInSec,
-        uint _totalAmount
+        address _address
     )
         public
-        addressRegistered(msg.sender)
-        vestingScheduleNotConfirmed(msg.sender)
+        addressRegistered(_address)
+        vestingScheduleNotConfirmed(_address)
     {
-        VestingSchedule storage vestingSchedule = schedules[msg.sender];
+        VestingSchedule storage vestingSchedule = schedules[_address];
 
-        require(vestingSchedule.startTimeInSec == _startTimeInSec);
-        require(vestingSchedule.cliffTimeInSec == _cliffTimeInSec);
-        require(vestingSchedule.endTimeInSec == _endTimeInSec);
-        require(vestingSchedule.totalAmount == _totalAmount);
+        // require(vestingSchedule.startTimeInSec == _startTimeInSec);
+        // require(vestingSchedule.cliffTimeInSec == _cliffTimeInSec);
+        // require(vestingSchedule.endTimeInSec == _endTimeInSec);
+        // require(vestingSchedule.totalAmount == _totalAmount);
 
         vestingSchedule.isConfirmed = true;
-        require(vestingToken.transferFrom(vestingSchedule.depositor, address(this), _totalAmount));
+        require(vestingToken.transferFrom(vestingSchedule.depositor, address(this), vestingSchedule.totalAmount),"tranferFrom");
 
         emit VestingScheduleConfirmed(
             msg.sender,
             vestingSchedule.depositor,
-            _startTimeInSec,
-            _cliffTimeInSec,
-            _endTimeInSec,
-            _totalAmount
+            vestingSchedule.startTimeInSec,
+            vestingSchedule.cliffTimeInSec,
+            vestingSchedule.endTimeInSec,
+            vestingSchedule.unlockAmount,
+            vestingSchedule.totalAmount
         );
     }
 
@@ -199,11 +195,11 @@ contract VestingWallet is Ownable {
         VestingSchedule storage vestingSchedule = schedules[msg.sender];
 
         uint totalAmountVested = getTotalAmountVested(vestingSchedule);
-        uint amountWithdrawable = totalAmountVested - vestingSchedule.totalAmountWithdrawn;
+        uint amountWithdrawable = totalAmountVested - vestingSchedule.totalAmountWithdrawn + vestingSchedule.unlockAmount;
         vestingSchedule.totalAmountWithdrawn = totalAmountVested;
 
         if (amountWithdrawable > 0) {
-            require(vestingToken.transfer(msg.sender, amountWithdrawable));
+            require(vestingToken.transfer(msg.sender, amountWithdrawable),"vestingToken.transfer(msg.sender, amountWithdrawable)");
             emit Withdrawal(msg.sender, amountWithdrawable);
         }
     }
@@ -222,7 +218,7 @@ contract VestingWallet is Ownable {
         uint amountWithdrawable = 0;
         uint amountRefundable = 0;
 
-        if (block.timestamp < vestingSchedule.cliffTimeInSec) {
+        if (blockTimestamp() < vestingSchedule.cliffTimeInSec) {
             amountRefundable = vestingSchedule.totalAmount;
         } else {
             uint totalAmountVested = getTotalAmountVested(vestingSchedule);
@@ -270,6 +266,12 @@ contract VestingWallet is Ownable {
         emit AddressChangeConfirmed(_oldRegisteredAddress, _newRegisteredAddress);
     }
 
+    function getTotalAmountVested(address _address) public view
+        returns (uint)
+    {
+        return getTotalAmountVested(schedules[_address]);
+    }
+
     /// @dev Calculates the total tokens that have been vested for a vesting schedule, assuming the schedule is past the cliff.
     /// @param vestingSchedule Vesting schedule used to calculate vested tokens.
     /// @return Total tokens vested for a vesting schedule.
@@ -277,16 +279,21 @@ contract VestingWallet is Ownable {
         internal
         returns (uint)
     {
-        if (block.timestamp >= vestingSchedule.endTimeInSec) return vestingSchedule.totalAmount;
+        if (blockTimestamp() >= vestingSchedule.endTimeInSec) return vestingSchedule.totalAmount;
 
-        uint timeSinceStartInSec = block.timestamp - vestingSchedule.startTimeInSec;
+        uint timeSinceStartInSec = blockTimestamp() - vestingSchedule.startTimeInSec;
         uint totalVestingTimeInSec = vestingSchedule.endTimeInSec - vestingSchedule.startTimeInSec;
         uint totalAmountVested = (timeSinceStartInSec * vestingSchedule.totalAmount)/totalVestingTimeInSec;
     
         return totalAmountVested;
     }
 
-    function blockTimestamp() public view returns (uint256) {
-        return block.timestamp;
+    function blockTimestamp() public view returns (uint) {
+        // return block.timestamp;
+        return _blockTimestamp;
+    }
+
+    function setBlockTimestamp(uint256 _newBlockTimestamp) public {
+        _blockTimestamp = _newBlockTimestamp;
     }
 }
