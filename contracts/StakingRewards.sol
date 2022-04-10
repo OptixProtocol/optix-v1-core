@@ -18,7 +18,7 @@ contract StakingRewards is Ownable {
     uint public totalSupply; 
     mapping(address => uint) public balances;
 
-    uint _blockTimestamp;
+    //uint _blockTimestamp;
 
     event RewardRateUpdated(uint from, uint to);
 
@@ -76,13 +76,13 @@ contract StakingRewards is Ownable {
     }
 
     function blockTimestamp() public view returns (uint) {
-        // return block.timestamp;
-        return _blockTimestamp;
+        return block.timestamp;
+        // return _blockTimestamp;
     }
 
-    function setBlockTimestamp(uint256 _newBlockTimestamp) public {
-        _blockTimestamp = _newBlockTimestamp;
-    }
+    // function setBlockTimestamp(uint256 _newBlockTimestamp) public {
+    //     _blockTimestamp = _newBlockTimestamp;
+    // }
     
 }
 
