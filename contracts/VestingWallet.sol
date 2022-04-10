@@ -5,17 +5,10 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contr
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/IERC20.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol";
 
-// 0:uint256: startTimeInSec 1648003734
-// 1:uint256: cliffTimeInSec 1648003734
-// 2:uint256: endTimeInSec 2648003704
-// 3:uint256: totalAmount 1000000000000
-// 4:uint256: totalAmountWithdrawn 0
-// 5:address: depositor 0xD445D873D0EDc0cD35ff4F61b334df8b7B822b1b
-// 6:bool: isConfirmed false
 
 contract VestingWallet is Ownable {
 
-    uint _blockTimestamp;
+    // uint _blockTimestamp;
 
     mapping(address => VestingSchedule) public schedules;        // vesting schedules for given addresses
     mapping(address => address) public addressChangeRequests;    // requested address changes
@@ -162,15 +155,11 @@ contract VestingWallet is Ownable {
         address _address
     )
         public
+        onlyOwner
         addressRegistered(_address)
         vestingScheduleNotConfirmed(_address)
     {
-        VestingSchedule storage vestingSchedule = schedules[_address];
-
-        // require(vestingSchedule.startTimeInSec == _startTimeInSec);
-        // require(vestingSchedule.cliffTimeInSec == _cliffTimeInSec);
-        // require(vestingSchedule.endTimeInSec == _endTimeInSec);
-        // require(vestingSchedule.totalAmount == _totalAmount);
+        VestingSchedule storage vestingSchedule = schedules[_address];        
 
         vestingSchedule.isConfirmed = true;
         require(vestingToken.transferFrom(vestingSchedule.depositor, address(this), vestingSchedule.totalAmount),"tranferFrom");
@@ -291,11 +280,11 @@ contract VestingWallet is Ownable {
     }
 
     function blockTimestamp() public view returns (uint) {
-        // return block.timestamp;
-        return _blockTimestamp;
+        return block.timestamp;
+        // return _blockTimestamp;
     }
 
-    function setBlockTimestamp(uint256 _newBlockTimestamp) public {
-        _blockTimestamp = _newBlockTimestamp;
-    }
+    // function setBlockTimestamp(uint256 _newBlockTimestamp) public {
+    //     _blockTimestamp = _newBlockTimestamp;
+    // }
 }
