@@ -18,7 +18,7 @@ contract UniswapV2Factory is IUniswapV2Factory {
     }
 
     function createPair(address tokenA, address tokenB) external returns (address pair) {
-        return 0x0000000000000000000000000000000000000000;
+        return address(0);
     }
 
 

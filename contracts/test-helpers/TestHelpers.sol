@@ -69,7 +69,7 @@ contract TestCalc {
         uint256 optionSize,
         uint256 strike,
         uint256 currentPrice,
-        IOptions.OptionType optionType,
+        IStructs.OptionType optionType,
         uint poolId,
         IOracle oracle
     )
@@ -77,10 +77,10 @@ contract TestCalc {
         view
         returns (uint256 fee)
     {
-        if( optionType == IOptions.OptionType.Call ){
+        if( optionType == IStructs.OptionType.Call ){
             return (utilisation*utilisation/4) * (callRatio*callRatio/4) / 62500000000;
         }
-        if( optionType == IOptions.OptionType.Put ){ 
+        if( optionType == IStructs.OptionType.Put ){ 
             return (utilisation*utilisation/4) * (putRatio*putRatio/4) / 62500000000;
         }        
     }

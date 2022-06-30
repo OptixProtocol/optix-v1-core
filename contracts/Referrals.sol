@@ -19,11 +19,10 @@ contract Referrals is AccessControl {
 
     mapping(address => bool) public blacklisted;
 
-
     bytes32 public constant CONTRACT_CALLER_ROLE = keccak256("CONTRACT_CALLER_ROLE");
     
     constructor(address _referralFeeRecipient) {  
-        require(_referralFeeRecipient!=0x0000000000000000000000000000000000000000, "Referrals: referralFeeRecipient can't be null"); 
+        require(_referralFeeRecipient!=address(0), "Referrals: referralFeeRecipient can't be null"); 
         referralFeeRecipient = _referralFeeRecipient;
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());     
         _setupRole(CONTRACT_CALLER_ROLE, _msgSender());
@@ -37,15 +36,14 @@ contract Referrals is AccessControl {
         require(hasRole(CONTRACT_CALLER_ROLE, _msgSender()), "Referrals: must have contract caller role");
 
         if(blacklisted[referredByIn]){
-            referredByIn = 0x0000000000000000000000000000000000000000;
-            referredBy[holder] = 0x0000000000000000000000000000000000000000;
+            referredByIn = address(0);
+            referredBy[holder] = address(0);
             referredDate[holder] = block.timestamp;   
         }
 
-
-        if(referredByIn == 0x0000000000000000000000000000000000000000 || referredByIn == holder){
+        if(referredByIn == address(0) || referredByIn == holder){
             //no referredBy passed in or same as holder
-            if((referredBy[holder]!=0x0000000000000000000000000000000000000000) && (referredDate[holder] + referralPeriod>=block.timestamp)){
+            if((referredBy[holder]!=address(0)) && (referredDate[holder] + referralPeriod>=block.timestamp)){
                 //valid referred by on record, so use that
                 referredByOut = referredBy[holder];            
             }
@@ -60,7 +58,7 @@ contract Referrals is AccessControl {
             referredByOut = referredByIn;
         }
 
-        if((referredBy[holder]==0x0000000000000000000000000000000000000000) || (referredDate[holder] + referralPeriod<=block.timestamp)){
+        if((referredBy[holder]==address(0)) || (referredDate[holder] + referralPeriod<=block.timestamp)){
             // its null or expired so 
             referredBy[holder] = referredByOut;
             referredDate[holder] = block.timestamp;            
@@ -71,11 +69,10 @@ contract Referrals is AccessControl {
             referrerId[referredByOut] = referrers.length;
             referrers.push(referredByOut);
         }
-        require(referredByOut!=0x0000000000000000000000000000000000000000, "Referrals: can't be null");
-
+        require(referredByOut!=address(0), "Referrals: can't be null");
     }
 
-   modifier IsDefaultAdmin() {
+    modifier IsDefaultAdmin() {
         require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Referrals: must have admin role");
         _;
     }
@@ -94,5 +91,4 @@ contract Referrals is AccessControl {
             setBlacklisted(addresses[i],isBlacklisted);
         }
     }    
- 
 }
