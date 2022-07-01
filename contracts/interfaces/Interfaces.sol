@@ -126,5 +126,5 @@ interface IOptions {
     event Expire(uint256 indexed optionId, uint vaultId, uint256 premium);
     event TransferOption(uint256 indexed optionId, address from, address to);
 
-
+    event SetDeltaHedge(uint256 indexed vaultId, uint percent, bool _toCollateral);
 }

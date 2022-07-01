@@ -79,6 +79,9 @@ contract Options is ERC721, AccessControl, IStructs, IOptions, IProtocolFeeCalcs
     {
         IFeeCalcs feeCalcs = optionsVault.vaultFeeCalc(vaultId);
         IProtocolFeeCalcs protocolFeesCalcs = (address(protocolFeeCalcs)==address(0))? this : protocolFeeCalcs;
+        require(!optionsVault.readOnly(vaultId), "Options: OptionVault is readonly");
+        require(optionsVault.oracleWhitelisted(oracle), "Options: Oracle is not whitelisted");
+        require(optionsVault.oracleEnabled(vaultId,oracle), "Options: Oracle is not enabled for this vault");
 
         uint256 latestPrice = latestAnswer(oracle);        
         
@@ -104,7 +107,7 @@ contract Options is ERC721, AccessControl, IStructs, IOptions, IProtocolFeeCalcs
     }
 
     function getReferFee(address holder,uint256 period, uint256 optionSize, uint256 strike, uint256 currentPrice, IStructs.OptionType optionType, uint vaultId, IOracle oracle) external view returns (uint256){
-        referrals.referFee();
+        return referrals.referFee();
     }
     
      /**

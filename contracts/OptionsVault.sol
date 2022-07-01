@@ -319,6 +319,7 @@ contract OptionsVault is AccessControl, IOptions, IStructs {
             hedgeReserves[_vaultId] = 0;
         }
         deltaPercent[_vaultId] = 5000;
+        emit SetDeltaHedge(_vaultId,5000,true);
     }
 
     /*
@@ -343,6 +344,7 @@ contract OptionsVault is AccessControl, IOptions, IStructs {
         uint endBal = collateralToken[_vaultId].balanceOf(address(this));
         deltaPercent[_vaultId] = percent;
         deltaToCollateral[_vaultId] = _toCollateral;
+        emit SetDeltaHedge(_vaultId, percent, _toCollateral);
     }
 
     function isVaultOwner(uint vaultId) public {
