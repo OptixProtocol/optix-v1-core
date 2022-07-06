@@ -82,6 +82,7 @@ contract Options is ERC721, AccessControl, IStructs, IOptions, IProtocolFeeCalcs
         require(!optionsVault.readOnly(vaultId), "Options: OptionVault is readonly");
         require(optionsVault.oracleWhitelisted(oracle), "Options: Oracle is not whitelisted");
         require(optionsVault.oracleEnabled(vaultId,oracle), "Options: Oracle is not enabled for this vault");
+        require(optionsVault.vaultCollateralAvailable(vaultId)>=optionSize, "Options: Not enough available collateral");
 
         uint256 latestPrice = latestAnswer(oracle);        
         
@@ -215,7 +216,7 @@ contract Options is ERC721, AccessControl, IStructs, IOptions, IProtocolFeeCalcs
 
         if (option.optionType == OptionType.Call) {
             require(option.strike <= currentPrice, "Options: Current price is too low");
-            profit = (currentPrice-option.strike)*(option.optionSize)/(currentPrice);
+            profit = (currentPrice-option.strike)*(option.optionSize)/(option.strike);
         } else if (option.optionType == OptionType.Put) {
             require(option.strike >= currentPrice, "Options: Current price is too high");
             profit = (option.strike-currentPrice)*(option.optionSize)/(option.strike);

@@ -36,9 +36,12 @@ contract Referrals is AccessControl {
         require(hasRole(CONTRACT_CALLER_ROLE, _msgSender()), "Referrals: must have contract caller role");
 
         if(blacklisted[referredByIn]){
+            //clear the referrer if its blacklisted
+            if (referredBy[holder] == referredByIn){
+                referredBy[holder] = address(0);
+                referredDate[holder] = block.timestamp; 
+            }  
             referredByIn = address(0);
-            referredBy[holder] = address(0);
-            referredDate[holder] = block.timestamp;   
         }
 
         if(referredByIn == address(0) || referredByIn == holder){

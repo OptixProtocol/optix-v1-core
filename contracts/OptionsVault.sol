@@ -122,19 +122,13 @@ contract OptionsVault is AccessControl, IOptions, IStructs {
         }  
         IUniswapV2Pair swapPair = IUniswapV2Pair(swapFactory[_vaultId].getPair(address(collateralToken[_vaultId]), address(hedgeToken[_vaultId])));
         (uint mintSwapTokens, ) = SwapPool.addLiquidity(account, collateralToken[_vaultId], hedgeToken[_vaultId], collateralIn, swapFactory[_vaultId], swapRouter[_vaultId]);
-    
-        if(optionsVault1155.totalSupply(_vaultId)!=0){
-            mint1155Tokens = mintSwapTokens*(swapPair.balanceOf(address(this))-mintSwapTokens)/swapBalance[_vaultId];
-        }
-        else{
-            mint1155Tokens = mintSwapTokens;
-        }
+        mint1155Tokens = mintSwapTokens;
 
         if(mint){
             optionsVault1155.mint(account, _vaultId, mint1155Tokens, "");
         }
         swapBalance[_vaultId] += mint1155Tokens;
-  
+
         if(delta!=5000){
             setDeltaHedge(_vaultId, delta, deltaToCollateral[_vaultId]);
         }  
@@ -161,7 +155,7 @@ contract OptionsVault is AccessControl, IOptions, IStructs {
     /*
      * @nonce Withdraw from the vault, optionally burning the user tokens
      */
-    function withdrawAndBurn(address account, uint _vaultId, uint256 burn1155Tokens, bool burn) public returns (uint collateralOut) {
+    function withdrawAndBurn(address account, uint _vaultId, uint256 burn1155Tokens, bool burn) internal returns (uint collateralOut) {
         if(burn1155Tokens==0){
             return 0;
         }
@@ -180,13 +174,15 @@ contract OptionsVault is AccessControl, IOptions, IStructs {
             resetDeltaHedge(_vaultId);
         }        
         IUniswapV2Pair swapPair = IUniswapV2Pair(swapFactory[_vaultId].getPair(address(collateralToken[_vaultId]), address(hedgeToken[_vaultId])));        
-        uint burnSwapTokens = swapBalance[_vaultId]*burn1155Tokens*swapBalance[_vaultId]/optionsVault1155.totalSupply(_vaultId)/swapPair.balanceOf(address(this));
+        uint burnSwapTokens = burn1155Tokens*swapBalance[_vaultId]/optionsVault1155.totalSupply(_vaultId);
 
         if(burn){
             optionsVault1155.burn(account, _vaultId, burn1155Tokens); //will fail if they don't have enough
         }
         (collateralOut,) = SwapPool.removeLiquidity(account, collateralToken[_vaultId], hedgeToken[_vaultId], burnSwapTokens, swapFactory[_vaultId], swapRouter[_vaultId],true);
-        swapBalance[_vaultId] -= burn1155Tokens;
+
+
+        swapBalance[_vaultId] -= burnSwapTokens;
 
         if(delta!=5000){
             setDeltaHedge(_vaultId, delta, deltaToCollateral[_vaultId]);
@@ -253,6 +249,7 @@ contract OptionsVault is AccessControl, IOptions, IStructs {
         uint transferAmount = amount > ll.amount ? ll.amount : amount;
 
         IUniswapV2Pair swapPair = IUniswapV2Pair(swapFactory[ll.vaultId].getPair(address(collateralToken[ll.vaultId]), address(hedgeToken[ll.vaultId])));       
+
         withdrawAndBurn(to, ll.vaultId, transferAmount*swapPair.totalSupply()/swapPairCollateralReserves(ll.vaultId,swapPair)/2,false);
 
         if (transferAmount <= ll.premium)
@@ -274,7 +271,7 @@ contract OptionsVault is AccessControl, IOptions, IStructs {
             return 0;
         }
 
-        return (swapPairCollateralReserves(_vaultId,swapPair)*1e4*swapPair.balanceOf(address(this))/optionsVault1155.totalSupply(_vaultId)/collateralizationRatio[_vaultId]);
+        return (1e4*2*swapPairCollateralReserves(_vaultId,swapPair)*swapBalance[_vaultId]/swapPair.totalSupply()/collateralizationRatio[_vaultId]);
     }
 
     /*
