@@ -90,6 +90,7 @@ contract OptionsVault is AccessControl, IOptions, IStructs {
         collateralizationRatio[vaultCount] = 10000;
         
         _setupRole(VAULT_OPERATOR_ROLE(vaultCount), _msgSender());
+        _setupRole(VAULT_LPWHITELIST_ROLE(vaultCount), _msgSender());
                 
         oracleEnabled[vaultCount][_oracle] = true;
         emit CreateVault(vaultCount, _oracle, _collateralToken, _hedgeToken, _swapFactory, _swapRouter);
