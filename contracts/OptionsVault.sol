@@ -43,18 +43,31 @@ contract OptionsVault is AccessControl, IOptions, IStructs {
 
     OptionsVault1155 public optionsVault1155;
     mapping(IOracle => bool) public oracleWhitelisted; 
+    mapping(bytes32 => bool) public tokenPairWhitelisted; 
+    mapping(bytes32 => bool) public swapServiceWhitelisted;      
+    bool public createVaultWhitelisted = true;
 
     // constants 
     bytes32 public constant CONTRACT_CALLER_ROLE = keccak256("CONTRACT_CALLER_ROLE");
+    bytes32 public constant COLLATERAL_RATIO_ROLE = keccak256("COLLATERAL_RATIO_ROLE");
+    bytes32 public constant CREATE_VAULT_ROLE = keccak256("CREATE_VAULT_ROLE");
     
     constructor(OptionsVault1155 _optionsVault1155)  {
         optionsVault1155 = _optionsVault1155;
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _setupRole(COLLATERAL_RATIO_ROLE, _msgSender());
+        _setupRole(CREATE_VAULT_ROLE, _msgSender());
     }
     
    function createVault(IOracle _oracle, IERC20 _collateralToken, IERC20 _hedgeToken, IUniswapV2Factory _swapFactory, IUniswapV2Router02 _swapRouter, IFeeCalcs _vaultFeeCalc) public {
-        isDefaultAdmin();
+        if(createVaultWhitelisted){
+            require(hasRole(CREATE_VAULT_ROLE, _msgSender()), "OptionsVault: must hold CREATE_VAULT_ROLE");
+        }
         require(oracleWhitelisted[_oracle],"OptionsVault: oracle must be whitelisted");
+        require(tokenPairWhitelisted[AddressHash(address(_collateralToken),address(_hedgeToken))],"OptionsVault: token pair must be whitelisted");
+        require(swapServiceWhitelisted[AddressHash(address(_swapFactory),address(_swapRouter))],"OptionsVault: swap service must be whitelisted");
+
+
 
         collateralToken[vaultCount] = _collateralToken;
         hedgeToken[vaultCount] = _hedgeToken;
@@ -93,6 +106,9 @@ contract OptionsVault is AccessControl, IOptions, IStructs {
         return keccak256(abi.encode("VAULT_LPWHITELIST_ROLE-", Strings.toString(_vaultId)));
     }    
 
+    function AddressHash(address a1, address a2) public view returns(bytes32){
+        return keccak256(abi.encode(address(a1), address(a2)));
+    }
     /*
      * @nonce A provider supplies token to the vault and receives optix vault1155 tokens
      * @param account account who will be the owner of the minted tokens 
@@ -114,7 +130,7 @@ contract OptionsVault is AccessControl, IOptions, IStructs {
         if(lpWhitelistOnly[_vaultId]){
             require(hasRole(VAULT_LPWHITELIST_ROLE(_vaultId), _msgSender()), "OptionsVault: must be in LP Whitelist");
         }
-        require(vaultCollateralTotal(_vaultId)+(collateralIn*1e4/collateralizationRatio[_vaultId])<=maxInvest[_vaultId],"OptionsVault: Max invest limit reached");
+        require(vaultCollateralTotal(_vaultId)+(collateralIn*collateralizationRatio[_vaultId]/1e4)<=maxInvest[_vaultId],"OptionsVault: Max invest limit reached");
         
         uint delta = deltaPercent[_vaultId]; 
         if (delta!=5000){
@@ -271,7 +287,7 @@ contract OptionsVault is AccessControl, IOptions, IStructs {
             return 0;
         }
 
-        return (1e4*2*swapPairCollateralReserves(_vaultId,swapPair)*swapBalance[_vaultId]/swapPair.totalSupply()/collateralizationRatio[_vaultId]);
+        return (collateralizationRatio[_vaultId]*2*swapPairCollateralReserves(_vaultId,swapPair)*swapBalance[_vaultId]/swapPair.totalSupply()/1e4);
     }
 
     /*
@@ -353,6 +369,15 @@ contract OptionsVault is AccessControl, IOptions, IStructs {
             (account==vaultOwner[vaultId]) ||
               (hasRole(VAULT_OPERATOR_ROLE(vaultId),account))
             , "OptionsVault: must have owner or operator role");
+    }
+
+    function isVaultOracleActive(uint _vaultId, IOracle _oracle) public returns (bool) {
+        require(!readOnly[_vaultId], "OptionsVault: vault is readonly");
+        require(oracleWhitelisted[_oracle],"OptionsVault: oracle must be whitelisted");
+        require(oracleEnabled[_vaultId][_oracle],"OptionsVault: oracle must be enabled");
+        require(tokenPairWhitelisted[AddressHash(address(collateralToken[_vaultId]),address(hedgeToken[_vaultId]))],"OptionsVault: token pair must be whitelisted");
+        require(swapServiceWhitelisted[AddressHash(address(swapFactory[_vaultId]),address(swapRouter[_vaultId]))],"OptionsVault: swap service must be whitelisted");
+        return true;
     }
 
     function isDefaultAdmin() public {
@@ -437,15 +462,35 @@ contract OptionsVault is AccessControl, IOptions, IStructs {
         lpWhitelistOnly[vaultId] = value; 
     }     
 
-    function setCollaterizationRatio(uint vaultId, uint256 value) external {
-        isDefaultAdmin();
-        emit SetVaultUInt(_msgSender(),SetVariableType.CollateralizationRatio, vaultId, collateralizationRatio[vaultId], value);
-        collateralizationRatio[vaultId] = value;
-    }
-
     function setOracleWhitelisted(IOracle _oracle, bool value) external {
         isDefaultAdmin();        
         emit SetGlobalBool(_msgSender(),SetVariableType.OracleWhitelisted, oracleWhitelisted[_oracle], value);
         oracleWhitelisted[_oracle] = value;   
     }  
+
+     function setTokenPairWhitelisted(address _collateralToken, address _hedgeToken, bool value) external { 
+        isDefaultAdmin();        
+        emit SetGlobalAddressPair(_msgSender(),SetVariableType.TokenPairWhitelisted, _collateralToken, _hedgeToken, tokenPairWhitelisted[AddressHash(_collateralToken,_hedgeToken)], value);
+        tokenPairWhitelisted[AddressHash(_collateralToken,_hedgeToken)] = value;         
+     }   
+
+     function setSwapSerivceWhitelisted(address _swapFactory, address _swapRouter, bool value) external { 
+        isDefaultAdmin();        
+        emit SetGlobalAddressPair(_msgSender(),SetVariableType.SwapServiceWhitelisted, _swapFactory, _swapRouter, swapServiceWhitelisted[AddressHash(_swapFactory,_swapRouter)], value);
+        swapServiceWhitelisted[AddressHash(_swapFactory,_swapRouter)] = value;
+     }
+
+    function setCreateVaultWhitelisted(bool value) external {
+        isDefaultAdmin();        
+        emit SetGlobalBool(_msgSender(),SetVariableType.OracleWhitelisted, createVaultWhitelisted, value);
+        createVaultWhitelisted = value;   
+    }
+
+    function setCollaterizationRatio(uint vaultId, uint256 value) external {
+        require(hasRole(COLLATERAL_RATIO_ROLE, _msgSender())
+            , "OptionsVault: must hold collateral ratio role");
+
+        emit SetVaultUInt(_msgSender(),SetVariableType.CollateralizationRatio, vaultId, collateralizationRatio[vaultId], value);
+        collateralizationRatio[vaultId] = value;
+    }
 }

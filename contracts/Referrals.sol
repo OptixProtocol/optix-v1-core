@@ -67,12 +67,17 @@ contract Referrals is AccessControl {
             referredDate[holder] = block.timestamp;            
         }
 
-        if(referrerId[referredByOut]==0){
+        addReferrer(referredByOut);
+
+        require(referredByOut!=address(0), "Referrals: referredByOut can't be null");
+    }
+
+    function addReferrer(address value) public {
+        if(referrerId[value]==0){
             // id for a friendly url
-            referrerId[referredByOut] = referrers.length;
-            referrers.push(referredByOut);
+            referrerId[value] = referrers.length;
+            referrers.push(value);
         }
-        require(referredByOut!=address(0), "Referrals: can't be null");
     }
 
     modifier IsDefaultAdmin() {

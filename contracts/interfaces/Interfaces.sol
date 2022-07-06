@@ -62,13 +62,14 @@ interface IStructs {
     enum OptionType {Invalid, Put, Call}
     enum SetVariableType {VaultOwner,VaultFeeRecipient,GrantVaultOperatorRole,RevokeVaultOperatorRole,GrantLPWhitelistRole,RevokeLPWhitelistRole,
     VaultFeeCalc, IpfsHash, ReadOnly, MaxInvest, WithdrawDelayPeriod, LPWhitelistOnly, CollateralizationRatio, OracleWhitelisted,ProtocolFeeCalc,
-    Referrals}
+    Referrals,TokenPairWhitelisted,SwapServiceWhitelisted,CreateVaultWhitelisted}
 
     event SetVaultBool(address indexed byAccount, SetVariableType indexed eventType, uint indexed vaultId, bool from, bool to);
     event SetVaultAddress(address indexed byAccount, SetVariableType indexed eventType, uint indexed vaultId, address from, address to);
     event SetVaultUInt(address indexed byAccount, SetVariableType indexed eventType, uint indexed vaultId, uint256 from, uint256 to);
     event SetGlobalBool(address indexed byAccount, SetVariableType indexed eventType, bool from, bool to);
     event SetGlobalAddress(address indexed byAccount, SetVariableType indexed eventType, address from, address to);
+    event SetGlobalAddressPair(address indexed byAccount, SetVariableType indexed eventType, address a1, address a2, bool from, bool to);
 
     struct Option  {
         State state;

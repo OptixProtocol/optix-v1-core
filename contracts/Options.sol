@@ -136,6 +136,8 @@ contract Options is ERC721, AccessControl, IStructs, IOptions, IProtocolFeeCalcs
             optionType == OptionType.Call || optionType == OptionType.Put,
             "Options: Wrong option type"
         );
+        optionsVault.isVaultOracleActive(vaultId,oracle);
+
         (Fees memory _premium) = premium(holder, period, optionSize, strike, optionType, vaultId, oracle, referredBy);
 
         optionID = options.length;  
