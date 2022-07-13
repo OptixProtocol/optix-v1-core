@@ -194,8 +194,8 @@ contract OptionsVault is AccessControl, IOptions, IStructs {
         // Can't withdraw unless initiated first and within of the withdraw delay period
         if (withdrawDelayPeriod[_vaultId]>0){
             if ((withdrawInitiated[_vaultId][account]==0) ||
-                ((block.timestamp >= withdrawInitiated[_vaultId][account] + withdrawDelayPeriod[_vaultId]) &&
-                (block.timestamp <= withdrawInitiated[_vaultId][account] + withdrawDelayPeriod[_vaultId] + 1 weeks))) {
+                ((block.timestamp < withdrawInitiated[_vaultId][account] + withdrawDelayPeriod[_vaultId]) &&
+                (block.timestamp > withdrawInitiated[_vaultId][account] + withdrawDelayPeriod[_vaultId] + 1 weeks))) {
                     require(false, "OptionsVault: Invalid withdraw initiation date");
             }
         }
