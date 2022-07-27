@@ -4,7 +4,6 @@ pragma solidity 0.8.13;
 import "./interfaces/Interfaces.sol";
 import "./libraries/OptionsLib.sol";
 import "./OptionsVaultFactory.sol";
-import "hardhat/console.sol";
 
 contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
     using SafeERC20 for IERC20;

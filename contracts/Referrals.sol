@@ -5,7 +5,6 @@ pragma solidity 0.8.13;
  */
  
 import "./interfaces/Interfaces.sol";
-import "hardhat/console.sol";
 
 contract Referrals is AccessControl {
    //referral    
