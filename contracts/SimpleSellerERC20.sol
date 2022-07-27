@@ -4,13 +4,13 @@ pragma solidity 0.8.13;
  *  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import "./OptionsVault.sol";
+import "./OptionsVaultFactory.sol";
 import "./interfaces/Interfaces.sol";
 import "hardhat/console.sol";
 
-contract SimpleSeller is IFeeCalcs, IStructs {
+contract SimpleSellerERC20 is IFeeCalcs, IStructs {
 
-    OptionsVault public optionsVault;
+    OptionsVaultFactory public factory;
 
     mapping(uint => mapping(IOracle => uint256[])) public callPeriods; //vaultId -> oracle -> array of periods
     mapping(uint => mapping(IOracle => mapping (uint256 => IStructs.PricePoint[]))) public callPrices; //vaultId -> oracle -> period -> array of prices at strikes
@@ -20,8 +20,8 @@ contract SimpleSeller is IFeeCalcs, IStructs {
     mapping(uint => mapping(IOracle => mapping (uint256 => IStructs.PricePoint[]))) public putPrices; 
     mapping(uint => mapping(IOracle => uint256)) public putFactor; 
 
-    constructor(OptionsVault _optionsVault){
-        optionsVault = _optionsVault;
+    constructor(OptionsVaultFactory _factory){
+        factory = _factory;
     }
 
     function getIntrinsicFee(
@@ -138,11 +138,11 @@ contract SimpleSeller is IFeeCalcs, IStructs {
         view
         returns (uint256)
     {
-        return 0;
+        return 100;
     }
 
     function setFactor(uint vaultId, IOracle oracle, OptionType optionType, uint factor) public {
-        optionsVault.isVaultOwnerOrOperator(vaultId,msg.sender);
+        factory.vaults(vaultId).isVaultOwnerOrOperator(msg.sender);
         if (optionType == OptionType.Call){
             callFactor[vaultId][oracle] = factor;
         }
@@ -152,7 +152,7 @@ contract SimpleSeller is IFeeCalcs, IStructs {
     }
 
     function deletePricePoints(uint vaultId, IOracle oracle, OptionType optionType) public {
-        optionsVault.isVaultOwnerOrOperator(vaultId,msg.sender);        
+        factory.vaults(vaultId).isVaultOwnerOrOperator(msg.sender);    
         delete callPeriods[vaultId][oracle];
         delete putPeriods[vaultId][oracle];
     }
@@ -161,7 +161,7 @@ contract SimpleSeller is IFeeCalcs, IStructs {
         require(periods.length>0,"SimpleSeller: must have some price points");
         require(periods.length==strikes.length,"SimpleSeller: periods & strikes lengths must be the same");
         require(periods.length==fees.length,"SimpleSeller: periods & fees lengths must be the same");
-        optionsVault.isVaultOwnerOrOperator(vaultId,msg.sender);
+        factory.vaults(vaultId).isVaultOwnerOrOperator(msg.sender);
 
         if (optionType == OptionType.Call){
             delete callPeriods[vaultId][oracle];

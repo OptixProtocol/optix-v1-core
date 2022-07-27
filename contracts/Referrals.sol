@@ -28,7 +28,6 @@ contract Referrals is AccessControl {
         _setupRole(CONTRACT_CALLER_ROLE, _msgSender());
     }
 
-    // Always pay current tx to referred by if passed in, regardless of whether there is one on record
     // If there is none passed in then check if there is valid one on record and use that
     // If there is no valid one on record then capture a new referral record
     // Store in an array so there can be a number that links the referrer's address for nice urls
@@ -41,34 +40,28 @@ contract Referrals is AccessControl {
                 referredBy[holder] = address(0);
                 referredDate[holder] = block.timestamp; 
             }  
-            referredByIn = address(0);
+            referredByIn = referralFeeRecipient;
         }
 
-        if(referredByIn == address(0) || referredByIn == holder){
-            //no referredBy passed in or same as holder
-            if((referredBy[holder]!=address(0)) && (referredDate[holder] + referralPeriod>=block.timestamp)){
-                //valid referred by on record, so use that
-                referredByOut = referredBy[holder];            
-            }
-            else{
-
-                //on record referred by either expired or null so use the protocol recipient                
-                referredByOut = referralFeeRecipient;  
-            }
+        if((referredBy[holder]!=address(0)) && (referredDate[holder] + referralPeriod>=block.timestamp)){
+            //valid referred by on record, so use that
+            referredByOut = referredBy[holder];            
         }
         else{
-            //use the referred by passed in
-            referredByOut = referredByIn;
-        }
+            //on record referred by either expired or null so use the protocol recipient                
+            if(referredByIn == address(0) || referredByIn == holder){
+                referredByOut = referralFeeRecipient;  
+            }
+            else{
+                //use the referred by passed in
+                referredByOut = referredByIn;
+            }
 
-        if((referredBy[holder]==address(0)) || (referredDate[holder] + referralPeriod<=block.timestamp)){
             // its null or expired so 
             referredBy[holder] = referredByOut;
-            referredDate[holder] = block.timestamp;            
+            referredDate[holder] = block.timestamp;
+            addReferrer(referredByOut);
         }
-
-        addReferrer(referredByOut);
-
         require(referredByOut!=address(0), "Referrals: referredByOut can't be null");
     }
 

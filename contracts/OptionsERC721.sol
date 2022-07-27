@@ -5,14 +5,14 @@ pragma solidity 0.8.13;
  */
  
 import "./interfaces/Interfaces.sol";
-import "./OptionsVault.sol";
+import "./OptionsVaultFactory.sol";
 import "./Referrals.sol";
 
-contract Options is ERC721, AccessControl, IStructs, IOptions, IProtocolFeeCalcs {
+contract OptionsERC721 is ERC721, AccessControl, IStructs, IOptions, IProtocolFeeCalcs {
     using SafeERC20 for IERC20;
     
     Option[] public options;
-    OptionsVault public optionsVault;
+    OptionsVaultFactory public factory;
     Referrals public referrals;
     address public protocolFeeRecipient;
     IProtocolFeeCalcs public protocolFeeCalcs;
@@ -20,16 +20,16 @@ contract Options is ERC721, AccessControl, IStructs, IOptions, IProtocolFeeCalcs
     uint public protocolFee = 100;  //1%
     uint public autoExercisePeriod = 30 minutes;
     
-
+    //constants
 
     constructor(
         address _protocolFeeRecipient,
-        OptionsVault _optionsVault,
+        OptionsVaultFactory _factory,
         Referrals _referrals,
         string memory name,
         string memory symbol
     ) ERC721(name, symbol)  {
-        optionsVault = _optionsVault;
+        factory = _factory;
         referrals = _referrals;
         protocolFeeRecipient = _protocolFeeRecipient;
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
@@ -75,9 +75,9 @@ contract Options is ERC721, AccessControl, IStructs, IOptions, IProtocolFeeCalcs
             Fees memory _fees 
         )
     {
-        optionsVault.isOptionValid(vaultId,holder,oracle,optionSize);
+        factory.vaults(vaultId).isOptionValid(holder,oracle,optionSize);
 
-        IFeeCalcs feeCalcs = optionsVault.vaultFeeCalc(vaultId);
+        IFeeCalcs feeCalcs = factory.vaults(vaultId).vaultFeeCalc();
         IProtocolFeeCalcs protocolFeesCalcs = (address(protocolFeeCalcs)==address(0))? this : protocolFeeCalcs;
 
 
@@ -142,15 +142,17 @@ contract Options is ERC721, AccessControl, IStructs, IOptions, IProtocolFeeCalcs
         Option memory option = _createOption(holder,period,optionSize,strike,optionType,vaultId,oracle,_premium,writeReferrer); 
 
         //pay protocol, referer & vault owner
-        optionsVault.collateralToken(vaultId).safeTransferFrom(holder, address(protocolFeeRecipient), _premium.protocolFee);
-        optionsVault.collateralToken(vaultId).safeTransferFrom(holder, address(writeReferrer), _premium.referFee);
-        optionsVault.collateralToken(vaultId).safeTransferFrom(holder, optionsVault.vaultOwner(vaultId), _premium.vaultFee);
+        factory.vaults(vaultId).collateralToken().safeTransferFrom(holder, address(protocolFeeRecipient), _premium.protocolFee);
+        factory.vaults(vaultId).collateralToken().safeTransferFrom(holder, address(writeReferrer), _premium.referFee);
+        factory.vaults(vaultId).collateralToken().safeTransferFrom(holder, factory.vaults(vaultId).vaultFeeRecipient(), _premium.vaultFee);
 
         uint remain = _premium.intrinsicFee+_premium.extrinsicFee;
-        optionsVault.collateralToken(vaultId).safeTransferFrom(holder, address(this), remain);
-        IERC20(optionsVault.collateralToken(vaultId)).approve(address(optionsVault), remain);
-        optionsVault.provideAndMint(address(this), vaultId, remain,false);
-        optionsVault.lock(optionID, option.lockedAmount, _premium, vaultId, optionType);
+        factory.vaults(vaultId).collateralToken().safeTransferFrom(holder, address(this), remain);
+        factory.vaults(vaultId).collateralToken().approve(address(this), remain);
+        factory.vaults(vaultId).collateralToken().safeTransferFrom(address(this), address(factory.vaults(vaultId)), remain);
+        
+        factory.vaults(vaultId).provideAndMint(address(this), remain, false, true);
+        factory.vaults(vaultId).lock(optionID, option.lockedAmount, _premium, optionType);
         
         options.push(option);
         _safeMint(holder, optionID);
@@ -176,7 +178,7 @@ contract Options is ERC721, AccessControl, IStructs, IOptions, IProtocolFeeCalcs
             strike,
             optionSize,
             optionSize, //*optionsVault.collateralizationRatio(vaultId)/10000,
-            _premium.total,
+            _premium,
             block.timestamp + period,
             optionType,
             vaultId,
@@ -224,7 +226,7 @@ contract Options is ERC721, AccessControl, IStructs, IOptions, IProtocolFeeCalcs
         if (profit > option.optionSize)
             profit = option.optionSize;
 
-        optionsVault.send(optionID, option.holder, profit);
+        factory.vaults(option.vaultId).send(optionID, option.holder, profit);
 
         emit Exercise(optionID, option.vaultId, profit);
     }
@@ -256,8 +258,8 @@ contract Options is ERC721, AccessControl, IStructs, IOptions, IProtocolFeeCalcs
         require(option.state == State.Active, "Options: Option is not active");
         require(option.expiration < block.timestamp, "Options: Option has not expired yet");
         option.state = State.Expired;
-        optionsVault.unlock(optionID);
-        emit Expire(optionID, option.vaultId, option.premium);
+        factory.vaults(option.vaultId).unlock(optionID);
+        emit Expire(optionID, option.vaultId, option.premium.total);
       }
 
      /**
