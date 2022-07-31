@@ -56,7 +56,7 @@ interface IStructs {
     enum BoolState {FalseMutable, TrueMutable, FalseImmutable, TrueImmutable}
     enum SetVariableType {VaultOwner,VaultFeeRecipient,GrantVaultOperatorRole,RevokeVaultOperatorRole,GrantLPWhitelistRole,RevokeLPWhitelistRole, GrantBuyerWhitelistRole,RevokeBuyerWhitelistRole,
     VaultFeeCalc, IpfsHash, ReadOnly, MaxInvest, WithdrawDelayPeriod, LPWhitelistOnly, BuyerWhitelistOnly, CollateralizationRatio, OracleWhitelisted, CollateralTokenWhitelisted, CreateVaultIsPermissionless, OracleIsPermissionless, CollateralTokenIsPermissionless, ProtocolFeeCalc,
-    Referrals,TokenPairWhitelisted,SwapServiceWhitelisted,CreateVaultWhitelisted, ProtocolFee, ProtocolFeeRecipient, AutoExercisePeriod, WithdrawDelayPeriodLocked, OracleEnabledLocked}
+    Referrals,TokenPairWhitelisted,SwapServiceWhitelisted,CreateVaultWhitelisted, ProtocolFee, ProtocolFeeRecipient, AutoExercisePeriod, WithdrawDelayPeriodLocked, OracleEnabledLocked, VaultFee}
 
 
     event SetVaultBool(address indexed byAccount, SetVariableType indexed eventType, uint indexed vaultId, bool from, bool to);
@@ -112,7 +112,7 @@ interface IFeeCalcs {
 }
 
 interface IOptions {
-    event CreateVault(uint indexed vaultId, IOracle oracle, IERC20 collateralToken);
+    event CreateVault(uint indexed vaultId, IOracle oracle, IERC20 collateralToken, address vault);
     event Provide(address indexed account, uint vaultId, uint256 amount, uint256 mintTokens, bool mint);
     event Withdraw(address indexed account, uint vaultId, uint amountA, uint256 burnTokens, bool burn);
     event Lock(uint indexed optionId, uint256 optionSize);

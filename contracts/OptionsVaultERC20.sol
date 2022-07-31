@@ -21,6 +21,7 @@ contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
     address public vaultOwner;
     address public vaultFeeRecipient;
     IFeeCalcs public vaultFeeCalc;
+    uint256 public vaultFee = 100;
     string public ipfsHash;
     bool public readOnly;
     uint256 public maxInvest;
@@ -42,6 +43,14 @@ contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
     OptionsVaultFactory public factory;
 
     constructor() ERC20("Optix Vault V1", "OPTIX-VAULT-V1") {}
+
+    function name() public view override returns (string memory) {
+        return string.concat("Optix Vault V1-",Strings.toString(getVaultId()));
+    }
+
+    function symbol() public view override returns (string memory) {
+        return string.concat("OPTIX-VAULT-V1-",Strings.toString(getVaultId()));
+    }
 
     function initialize(address owner, IOracle _oracle, IERC20 _collateralToken, IFeeCalcs _vaultFeeCalc) external {
         require(address(factory) == address(0), "OptionsVaultERC20: FORBIDDEN"); 
@@ -254,7 +263,7 @@ contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
         require(oracleEnabled[_oracle],"OptionsVaultERC20: oracle not enabled for this vault");        
         if(OptionsLib.boolStateIsTrue(buyerWhitelistOnly)){            
             require(hasRole(VAULT_BUYERWHITELIST_ROLE, buyer), "OptionsVaultERC20: must be in buyer whitelist");
-        }
+        }        
         require(vaultCollateralAvailable()>=optionSize, "OptionsVaultERC20: Not enough available collateral");
 
         return true;
@@ -284,6 +293,13 @@ contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
         return vaultCollateralTotal()-vaultCollateralLocked();
     }
 
+
+    // How much is the vault utilized from 0...10000 (100%) if the optionSize is included 
+    // Used for calculating 
+    function vaultUtilization(uint256 includingOptionSize) public view returns (uint256) {
+        return (vaultCollateralLocked()+includingOptionSize)*1e4/vaultCollateralTotal();        
+    }
+
     function isVaultOwner() public {
         require(_msgSender()==vaultOwner, "OptionsVaultERC20: must have owner role");
     }
@@ -295,6 +311,13 @@ contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
             , "OptionsVaultERC20: must have owner or operator role");
     }
     
+    function setVaultFee(uint256 value) external {
+        isVaultOwnerOrOperator(_msgSender());        
+        emit SetVaultUInt(_msgSender(),SetVariableType.VaultFee, getVaultId(), vaultFee, value);
+        vaultFee = value;
+    }
+
+
     function setWithdrawDelayPeriod(uint256 value) external {
         isVaultOwnerOrOperator(_msgSender());
         require(!OptionsLib.boolStateIsTrue(withdrawDelayPeriodLocked),"OptionsVaultERC20: setting is immutable");

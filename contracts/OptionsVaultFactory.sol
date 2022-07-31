@@ -52,15 +52,15 @@ contract OptionsVaultFactory is IOptions, AccessControl, IStructs {
             require(collateralTokenWhitelisted[_collateralToken],"OptionsVaultFactory: collateral token must be in whitelist");
         }    
 
-        address clone = Clones.clone(optionVaultERC20Implementation);
-        OptionsVaultERC20(clone).initialize(owner,_oracle,_collateralToken,_vaultFeeCalc);
+        address vault = Clones.clone(optionVaultERC20Implementation);
+        OptionsVaultERC20(vault).initialize(owner,_oracle,_collateralToken,_vaultFeeCalc);
         
-        emit CreateVault(vaults.length, _oracle, _collateralToken);
+        emit CreateVault(vaults.length, _oracle, _collateralToken, vault);
         emit UpdateOracle(_oracle, vaults.length, true, _collateralToken, _oracle.decimals(), _oracle.description());
 
-        vaultId[clone] = vaults.length;
-        vaults.push(OptionsVaultERC20(clone));
-        return clone;
+        vaultId[vault] = vaults.length;
+        vaults.push(OptionsVaultERC20(vault));
+        return vault;
    }
 
     function setCreateVaultIsPermissionlessImmutable(BoolState value) public {
