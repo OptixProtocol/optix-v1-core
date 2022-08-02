@@ -63,6 +63,10 @@ contract OptionsVaultFactory is IOptions, AccessControl, IStructs {
         return vault;
    }
 
+    function vaultsLength() public view returns(uint) {
+        return vaults.length;
+    }
+
     function setCreateVaultIsPermissionlessImmutable(BoolState value) public {
         isDefaultAdmin();        
         require(OptionsLib.boolStateIsMutable(createVaultIsPermissionless),"OptionsVaultFactory: setting is immutable");

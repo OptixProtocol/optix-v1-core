@@ -127,3 +127,10 @@ interface IOptions {
     event Expire(uint256 indexed optionId, uint vaultId, uint256 premium);
     event TransferOption(uint256 indexed optionId, address from, address to);
 }
+
+interface IReferrals {
+    event Blacklisted(address indexed value, bool isBlacklisted);
+    event ReferralFeeRecipient(address indexed value);
+    event AddReferrer(address indexed account, uint position);
+
+}

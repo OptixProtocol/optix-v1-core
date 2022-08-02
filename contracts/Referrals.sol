@@ -6,7 +6,7 @@ pragma solidity 0.8.13;
  
 import "./interfaces/Interfaces.sol";
 
-contract Referrals is AccessControl {
+contract Referrals is AccessControl, IReferrals {
    //referral    
     uint public referFee = 50;  //.5%
     address public referralFeeRecipient;
@@ -69,6 +69,7 @@ contract Referrals is AccessControl {
             // id for a friendly url
             referrerId[value] = referrers.length;
             referrers.push(value);
+            emit AddReferrer(value, referrerId[value]);
         }
     }
 
@@ -79,10 +80,12 @@ contract Referrals is AccessControl {
 
     function setReferralFeeRecipient(address value) external IsDefaultAdmin  {
         referralFeeRecipient = value;
+        emit ReferralFeeRecipient(value);
     }
 
     function setBlacklisted(address value, bool isBlacklisted) public IsDefaultAdmin  {
         blacklisted[value] = isBlacklisted;
+        emit Blacklisted(value,isBlacklisted);
     }   
 
     function setBlacklistedAll(address[] calldata addresses, bool isBlacklisted) external IsDefaultAdmin  {
