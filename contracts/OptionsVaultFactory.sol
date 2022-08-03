@@ -13,7 +13,9 @@ contract OptionsVaultFactory is IOptions, AccessControl, IStructs {
 
     OptionsVaultERC20[] public vaults;
     mapping(address => uint256) public vaultId;
+
     address public optionsContract;
+    address public optionVaultERC20Implementation;
 
     mapping(IOracle => bool) public oracleWhitelisted; 
     mapping(IERC20 => bool) public collateralTokenWhitelisted; 
@@ -29,7 +31,6 @@ contract OptionsVaultFactory is IOptions, AccessControl, IStructs {
     bytes32 public constant CREATE_VAULT_ROLE = keccak256("CREATE_VAULT_ROLE");
     bytes32 public constant COLLATERAL_RATIO_ROLE = keccak256("COLLATERAL_RATIO_ROLE");
     bytes32 public constant CONTRACT_CALLER_ROLE = keccak256("CONTRACT_CALLER_ROLE");
-    address public optionVaultERC20Implementation;
 
     constructor(address _optionVaultERC20Implementation)  {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
@@ -38,9 +39,14 @@ contract OptionsVaultFactory is IOptions, AccessControl, IStructs {
         optionVaultERC20Implementation = _optionVaultERC20Implementation;
     }
 
+    function initialize(address _optionsContract) public {
+        isDefaultAdmin();        
+        if (optionsContract == address(0)){
+            optionsContract = _optionsContract;
+        }
+    }
 
-
-   function createVault(address owner, IOracle _oracle, IERC20 _collateralToken, IFeeCalcs _vaultFeeCalc) public returns (address){
+   function createVault(address _owner, IOracle _oracle, IERC20 _collateralToken, IFeeCalcs _vaultFeeCalc) public returns (address){
         if(!OptionsLib.boolStateIsTrue(createVaultIsPermissionless)){
             require(hasRole(CREATE_VAULT_ROLE, _msgSender()), "OptionsVaultFactory: must hold CREATE_VAULT_ROLE");
         }
@@ -53,7 +59,7 @@ contract OptionsVaultFactory is IOptions, AccessControl, IStructs {
         }    
 
         address vault = Clones.clone(optionVaultERC20Implementation);
-        OptionsVaultERC20(vault).initialize(owner,_oracle,_collateralToken,_vaultFeeCalc);
+        OptionsVaultERC20(vault).initialize(_owner,_oracle,_collateralToken,_vaultFeeCalc);
         
         emit CreateVault(vaults.length, _oracle, _collateralToken, vault);
         emit UpdateOracle(_oracle, vaults.length, true, _collateralToken, _oracle.decimals(), _oracle.description());
@@ -67,46 +73,38 @@ contract OptionsVaultFactory is IOptions, AccessControl, IStructs {
         return vaults.length;
     }
 
-    function setCreateVaultIsPermissionlessImmutable(BoolState value) public {
+    function setCreateVaultIsPermissionlessImmutable(BoolState _value) public {
         isDefaultAdmin();        
         require(OptionsLib.boolStateIsMutable(createVaultIsPermissionless),"OptionsVaultFactory: setting is immutable");
-        emit SetGlobalBoolState(_msgSender(),SetVariableType.CreateVaultIsPermissionless, createVaultIsPermissionless, value);
-        createVaultIsPermissionless = value;   
+        emit SetGlobalBoolState(_msgSender(),SetVariableType.CreateVaultIsPermissionless, createVaultIsPermissionless, _value);
+        createVaultIsPermissionless = _value;   
     }  
 
-    function setOracleIsPermissionlessImmutable(BoolState value) public {
+    function setOracleIsPermissionlessImmutable(BoolState _value) public {
         isDefaultAdmin();        
         require(OptionsLib.boolStateIsMutable(oracleIsPermissionless),"OptionsVaultFactory: setting is immutable");
-        emit SetGlobalBoolState(_msgSender(),SetVariableType.OracleIsPermissionless, oracleIsPermissionless, value);
-        oracleIsPermissionless = value;   
+        emit SetGlobalBoolState(_msgSender(),SetVariableType.OracleIsPermissionless, oracleIsPermissionless, _value);
+        oracleIsPermissionless = _value;   
     } 
 
-    function setCollateralTokenIsPermissionlessImmutable(BoolState value) public {
+    function setCollateralTokenIsPermissionlessImmutable(BoolState _value) public {
         isDefaultAdmin();        
         require(OptionsLib.boolStateIsMutable(collateralTokenIsPermissionless),"OptionsVaultFactory: setting is immutable");
-        emit SetGlobalBoolState(_msgSender(),SetVariableType.CollateralTokenIsPermissionless, collateralTokenIsPermissionless, value);
-        collateralTokenIsPermissionless = value;   
+        emit SetGlobalBoolState(_msgSender(),SetVariableType.CollateralTokenIsPermissionless, collateralTokenIsPermissionless, _value);
+        collateralTokenIsPermissionless = _value;   
     } 
 
-    function setOracleWhitelisted(IOracle _oracle, bool value) public {
+    function setOracleWhitelisted(IOracle _oracle, bool _value) public {
         isDefaultAdmin();                
-        emit SetGlobalBool(_msgSender(),SetVariableType.OracleWhitelisted, oracleWhitelisted[_oracle], value);
-        oracleWhitelisted[_oracle] = value;
+        emit SetGlobalBool(_msgSender(),SetVariableType.OracleWhitelisted, oracleWhitelisted[_oracle], _value);
+        oracleWhitelisted[_oracle] = _value;
     }  
 
-    function setCollateralTokenWhitelisted(IERC20 _collateralToken, bool value) public {
+    function setCollateralTokenWhitelisted(IERC20 _collateralToken, bool _value) public {
         isDefaultAdmin();        
-        emit SetGlobalBool(_msgSender(),SetVariableType.CollateralTokenWhitelisted, collateralTokenWhitelisted[_collateralToken], value);
-        collateralTokenWhitelisted[_collateralToken] = value;   
+        emit SetGlobalBool(_msgSender(),SetVariableType.CollateralTokenWhitelisted, collateralTokenWhitelisted[_collateralToken], _value);
+        collateralTokenWhitelisted[_collateralToken] = _value;   
     }  
-
-
-    function setOptionsContract(address _address) public{
-        isDefaultAdmin();        
-        if (optionsContract == address(0)){
-            optionsContract = _address;
-        }
-    }
 
     function isDefaultAdmin() public {
         require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "OptionsVaultFactory: must have admin role");

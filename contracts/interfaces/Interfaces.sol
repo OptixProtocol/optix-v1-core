@@ -56,7 +56,7 @@ interface IStructs {
     enum BoolState {FalseMutable, TrueMutable, FalseImmutable, TrueImmutable}
     enum SetVariableType {VaultOwner,VaultFeeRecipient,GrantVaultOperatorRole,RevokeVaultOperatorRole,GrantLPWhitelistRole,RevokeLPWhitelistRole, GrantBuyerWhitelistRole,RevokeBuyerWhitelistRole,
     VaultFeeCalc, IpfsHash, ReadOnly, MaxInvest, WithdrawDelayPeriod, LPWhitelistOnly, BuyerWhitelistOnly, CollateralizationRatio, OracleWhitelisted, CollateralTokenWhitelisted, CreateVaultIsPermissionless, OracleIsPermissionless, CollateralTokenIsPermissionless, ProtocolFeeCalc,
-    Referrals,TokenPairWhitelisted,SwapServiceWhitelisted,CreateVaultWhitelisted, ProtocolFee, ProtocolFeeRecipient, AutoExercisePeriod, WithdrawDelayPeriodLocked, OracleEnabledLocked, VaultFee}
+    Referrals,TokenPairWhitelisted,SwapServiceWhitelisted,CreateVaultWhitelisted, ProtocolFee, ProtocolFeeRecipient, AutoExercisePeriod, WithdrawDelayPeriodLocked, OracleEnabledLocked, VaultFee, VaultFeeCalcLocked}
 
 
     event SetVaultBool(address indexed byAccount, SetVariableType indexed eventType, uint indexed vaultId, bool from, bool to);

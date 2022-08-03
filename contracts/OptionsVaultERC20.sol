@@ -8,19 +8,21 @@ import "./OptionsVaultFactory.sol";
 contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
     using SafeERC20 for IERC20;
 
+    OptionsVaultFactory public factory;
+
     // internal vault properties
     IERC20 public collateralToken; 
     uint256 public collateralReserves;
 
     uint256 public lockedCollateralCall;
-    uint256 public lockedCollateralPut;
-    LockedCollateral[] public lockedCollateralArray;
+    uint256 public lockedCollateralPut;    
     mapping(uint256 => LockedCollateral) public lockedCollateral;
 
     // updatable by vault owner/operator 
     address public vaultOwner;
     address public vaultFeeRecipient;
     IFeeCalcs public vaultFeeCalc;
+    BoolState public vaultFeeCalcLocked;   
     uint256 public vaultFee = 100;
     string public ipfsHash;
     bool public readOnly;
@@ -34,14 +36,11 @@ contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
     BoolState public buyerWhitelistOnly;  
 
     //constants
-    uint256 public constant INITIAL_RATE = 1e18;
-    bytes32 public constant CONTRACT_CALLER_ROLE = keccak256("CONTRACT_CALLER_ROLE");
+    uint256 public constant INITIAL_RATE = 1e18;    
     bytes32 public constant VAULT_OPERATOR_ROLE = keccak256("VAULT_OPERATOR_ROLE");
     bytes32 public constant VAULT_BUYERWHITELIST_ROLE = keccak256("VAULT_BUYERWHITELIST_ROLE");
     bytes32 public constant VAULT_LPWHITELIST_ROLE = keccak256("VAULT_LPWHITELIST_ROLE");
     
-    OptionsVaultFactory public factory;
-
     constructor() ERC20("Optix Vault V1", "OPTIX-VAULT-V1") {}
 
     function name() public view override returns (string memory) {
@@ -52,7 +51,7 @@ contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
         return string.concat("OPTIX-VAULT-V1-",Strings.toString(getVaultId()));
     }
 
-    function initialize(address owner, IOracle _oracle, IERC20 _collateralToken, IFeeCalcs _vaultFeeCalc) external {
+    function initialize(address _owner, IOracle _oracle, IERC20 _collateralToken, IFeeCalcs _vaultFeeCalc) external {
         require(address(factory) == address(0), "OptionsVaultERC20: FORBIDDEN"); 
         collateralToken = _collateralToken;
         collateralReserves = 0; 
@@ -60,8 +59,8 @@ contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
         lockedCollateralCall = 0;
         lockedCollateralPut = 0;
         
-        vaultOwner = owner;        
-        vaultFeeRecipient = owner;    
+        vaultOwner = _owner;        
+        vaultFeeRecipient = _owner;    
         vaultFeeCalc = _vaultFeeCalc;    
         ipfsHash = "";
         readOnly = false;
@@ -73,73 +72,73 @@ contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
         oracleEnabledLocked = BoolState.FalseMutable;
         factory = OptionsVaultFactory(msg.sender);
         
-        _setupRole(VAULT_OPERATOR_ROLE, owner);
-        _setupRole(VAULT_LPWHITELIST_ROLE, owner);
-        _setupRole(VAULT_BUYERWHITELIST_ROLE, owner);
+        _setupRole(VAULT_OPERATOR_ROLE, _owner);
+        _setupRole(VAULT_LPWHITELIST_ROLE, _owner);
+        _setupRole(VAULT_BUYERWHITELIST_ROLE, _owner);
                 
         oracleEnabled[_oracle] = true;
     }
 
      /*
-     * @nonce A provider supplies token to the vault and receives optix vault1155 tokens
+     * @nonce A provider supplies token to the vault and receives optix vault tokens
      * @param account account who will be the owner of the minted tokens 
      * @param vaultId Pool to provide to 
      * @param collateralIn Amount to deposit in the collatoral token
      * @return mintTokens Tokens minted to represent ownership
      */
-    function provide(address account, uint256 collateralIn) public returns (uint256 mintTokens){
-        return provideAndMint(account,collateralIn,true,false);
+    function provide(address _account, uint256 _collateralIn) public returns (uint256 mintTokens){
+        return provideAndMint(_account,_collateralIn,true,false);
     }    
 
     /*
-     * @nonce Sends tokens to the vault optionally receiving 1155 minted tokens in return. 
+     * @nonce Sends tokens to the vault optionally receiving minted tokens in return. 
      *  mint=false means you will receive no ownership tokens from this function.
      *  To be used to increase the vault with premium collected etc. 
      */     
-    function provideAndMint(address account, uint256 collateralIn, bool mint, bool collectedWithPremium) public returns (uint256 mintTokens){
+    function provideAndMint(address _account, uint256 _collateralIn, bool _mintVaultTokens, bool _collectedWithPremium) public returns (uint256 mintTokens){
         
         uint _vaultId = getVaultId();
-        if(mint && OptionsLib.boolStateIsTrue(lpWhitelistOnly)){            
+        if(_mintVaultTokens && OptionsLib.boolStateIsTrue(lpWhitelistOnly)){            
 
-            require(hasRole(VAULT_LPWHITELIST_ROLE, account), "OptionsVaultERC20: must be in LP Whitelist");
+            require(hasRole(VAULT_LPWHITELIST_ROLE, _account), "OptionsVaultERC20: must be in LP Whitelist");
         }
-        require(vaultCollateralTotal()+(collateralIn*factory.getCollateralizationRatio(this)/1e4)<=maxInvest,"OptionsVaultERC20: Max invest limit reached");
+        require(vaultCollateralTotal()+(_collateralIn*factory.getCollateralizationRatio(this)/1e4)<=maxInvest,"OptionsVaultERC20: Max invest limit reached");
 
-        if(collectedWithPremium){            
+        if(_collectedWithPremium){            
             require(factory.optionsContract() == msg.sender, "OptionsVaultERC20: must be called from options contract");
         }
         else{
-            collateralToken.safeTransferFrom(account, address(this), collateralIn);
+            collateralToken.safeTransferFrom(_account, address(this), _collateralIn);
         }
 
         uint256 supply = totalSupply();
         uint balance = collateralReserves;
         if (supply > 0 && balance > 0){
-            mintTokens = collateralIn*supply/balance;
+            mintTokens = _collateralIn*supply/balance;
         }
         else
-            mintTokens = collateralIn*INITIAL_RATE;
+            mintTokens = _collateralIn*INITIAL_RATE;
         require(mintTokens > 0, "OptionsVaultERC20: Amount is too small");
 
 
-        collateralReserves += collateralIn;               
-        emit Provide(account, _vaultId, collateralIn, mintTokens, mint);
-        if(mint){
-            _mint(account, mintTokens);
+        collateralReserves += _collateralIn;               
+        emit Provide(_account, _vaultId, _collateralIn, mintTokens, _mintVaultTokens);
+        if(_mintVaultTokens){
+            _mint(_account, mintTokens);
         }
     }
 
     /*
      * @nonce Can't withdraw unless initiated first and within of the withdraw delay period
      */
-    function initiateWithdraw(address account)  external  {
-        if (allowance(account, address(this))>0){
-            if (withdrawInitiated[account] == 0){
-                withdrawInitiated[account] = block.timestamp;
+    function initiateWithdraw(address _account)  external  {
+        if (allowance(_account, address(this))>0){
+            if (withdrawInitiated[_account] == 0){
+                withdrawInitiated[_account] = block.timestamp;
             }
             else{
-                if(block.timestamp > withdrawInitiated[account] + withdrawDelayPeriod + factory.withdrawWindow()){
-                    withdrawInitiated[account] = block.timestamp;
+                if(block.timestamp > withdrawInitiated[_account] + withdrawDelayPeriod + factory.withdrawWindow()){
+                    withdrawInitiated[_account] = block.timestamp;
                 }
                 else{
                     require(false, "OptionsVaultERC20: Invalid withdraw initiation date");
@@ -149,74 +148,73 @@ contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
         }
     }
 
-
     /*
      * @nonce Withdraw from the vault, burning the user tokens
      */
-    function withdraw(address account, uint256 burnTokens) public returns (uint collateralOut) {
-       return withdrawAndBurn(account, burnTokens, true);
+    function withdraw(address _account, uint256 _tokensToBurn) public returns (uint collateralOut) {
+       return withdrawAndBurn(_account, _tokensToBurn, true);
     }
 
     /*
      * @nonce Withdraw from the vault, optionally burning the user tokens
      */
-    function withdrawAndBurn(address account, uint256 burnTokens, bool burn) internal returns (uint collateralOut) {
+    function withdrawAndBurn(address _account, uint256 _tokensToBurn, bool _burnVaultTokens) internal returns (uint collateralOut) {
         uint _vaultId = getVaultId();
-        if(burnTokens==0){
+        if(_tokensToBurn==0){
             return 0;
         }
         
         // Can't withdraw unless initiated first and within of the withdraw delay period
         if (withdrawDelayPeriod>0){
-            if ((withdrawInitiated[account]==0) ||
-                ((block.timestamp < withdrawInitiated[account] + withdrawDelayPeriod) ||
-                (block.timestamp > withdrawInitiated[account] + withdrawDelayPeriod + factory.withdrawWindow()))) {
+            if ((withdrawInitiated[_account]==0) ||
+                ((block.timestamp < withdrawInitiated[_account] + withdrawDelayPeriod) ||
+                (block.timestamp > withdrawInitiated[_account] + withdrawDelayPeriod + factory.withdrawWindow()))) {
                     require(false, "OptionsVaultERC20: Invalid withdraw initiation date");
             }
         }
-        collateralOut = collateralReserves * burnTokens / totalSupply();
-        if(burn){
+        collateralOut = collateralReserves * _tokensToBurn / totalSupply();
+        if(_burnVaultTokens){
             require(collateralOut <= vaultCollateralAvailable(),"OptionsVaultERC20: not enough unlocked collateral available");
         }
 
         collateralReserves -= collateralOut;
         collateralToken.approve(address(this),collateralOut);
-        collateralToken.safeTransferFrom(address(this), account, collateralOut);
-        if(burn){            
-            _burn(account, burnTokens); //will fail if they don't have enough
-        }
+        collateralToken.safeTransferFrom(address(this), _account, collateralOut);
+        emit Withdraw(_account, _vaultId, collateralOut, _tokensToBurn, _burnVaultTokens);
 
-        emit Withdraw(account, _vaultId, collateralOut, burnTokens, burn);
+        if(_burnVaultTokens){            
+            _burn(_account, _tokensToBurn); //will fail if they don't have enough
+        }
     }
 
 
     /* 
      * @nonce Called by Options to lock funds
      */
-    function lock(uint optionId, uint256 optionSize, IStructs.Fees memory _premium, OptionType optionType ) public  {
+    function lock(uint _optionId, uint256 _optionSize, IStructs.Fees memory _premium, OptionType _optionType ) public  {
         uint _vaultId = getVaultId();
         require(
-                optionSize <= vaultCollateralAvailable(),
+                _optionSize <= vaultCollateralAvailable(),
                 "OptionsVaultERC20: Not enough vault collateral available."
         );
         require(factory.optionsContract() == msg.sender, "OptionsVaultERC20: must be called from options contract");
 
-        lockedCollateral[optionId] = LockedCollateral(optionSize, _premium, true, _vaultId, optionType);
-        if(optionType == OptionType.Put){
-            lockedCollateralPut = lockedCollateralPut+optionSize;
+        lockedCollateral[_optionId] = LockedCollateral(_optionSize, _premium, true, _vaultId, _optionType);
+        if(_optionType == OptionType.Put){
+            lockedCollateralPut = lockedCollateralPut+_optionSize;
         }
         else{
-            lockedCollateralCall = lockedCollateralCall+optionSize;
+            lockedCollateralCall = lockedCollateralCall+_optionSize;
         }
 
-        emit Lock(optionId, optionSize);
+        emit Lock(_optionId, _optionSize);
     }
     
     /*
      * @nonce Called by Options to unlock funds
      */
-    function unlock(uint256 optionId) public  {
-        LockedCollateral storage ll = lockedCollateral[optionId];        
+    function unlock(uint256 _optionId) public  {
+        LockedCollateral storage ll = lockedCollateral[_optionId];        
         require(ll.locked, "OptionsVaultERC20: lockedCollateral with id has already unlocked");
         require(factory.optionsContract() == msg.sender, "OptionsVaultERC20: must be called from options contract");
 
@@ -227,17 +225,17 @@ contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
         else
           lockedCollateralCall = lockedCollateralCall-ll.optionSize;
 
-        emit VaultProfit(optionId, ll.vaultId, ll.premium.intrinsicFee+ll.premium.extrinsicFee);
-        emit Unlock(optionId);
+        emit VaultProfit(_optionId, ll.vaultId, ll.premium.intrinsicFee+ll.premium.extrinsicFee);
+        emit Unlock(_optionId);
     }
 
     /*
      * @nonce Send fund to option holder
      */
-    function send(uint optionId, address to, uint256 amount) public {
-        LockedCollateral storage ll = lockedCollateral[optionId];
+    function send(uint _optionId, address _to, uint256 _amount) public {
+        LockedCollateral storage ll = lockedCollateral[_optionId];
         require(ll.locked, "OptionsVaultERC20: id already unlocked");
-        require(to != address(0));
+        require(_to != address(0));
         require(factory.optionsContract() == msg.sender, "OptionsVaultERC20: must be called from options contract");
 
         ll.locked = false;
@@ -246,25 +244,29 @@ contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
         else
           lockedCollateralCall = lockedCollateralCall-ll.optionSize;
 
-        uint transferAmount = amount > ll.optionSize ? ll.optionSize : amount;
-        withdrawAndBurn(to, amount*totalSupply() / collateralReserves, false);
+        uint transferAmount = _amount > ll.optionSize ? ll.optionSize : _amount;
+        withdrawAndBurn(_to, _amount*totalSupply() / collateralReserves, false);
 
         if (transferAmount <= ll.premium.intrinsicFee+ll.premium.extrinsicFee)
-            emit VaultProfit(optionId, ll.vaultId, ll.premium.intrinsicFee+ll.premium.extrinsicFee-transferAmount);
+            emit VaultProfit(_optionId, ll.vaultId, ll.premium.intrinsicFee+ll.premium.extrinsicFee-transferAmount);
         else
-            emit VaultLoss(optionId, ll.vaultId, transferAmount-ll.premium.intrinsicFee+ll.premium.extrinsicFee);
+            emit VaultLoss(_optionId, ll.vaultId, transferAmount-ll.premium.intrinsicFee+ll.premium.extrinsicFee);
+        emit Unlock(_optionId);
     }
 
-    function isOptionValid(address buyer, IOracle _oracle, uint256 optionSize) public view returns (bool) {
+    function isOptionValid(address _buyer, IOracle _oracle, uint256 _optionSize) public view returns (bool) {
         require(!readOnly, "OptionsVaultERC20: vault is readonly");
         if(!OptionsLib.boolStateIsTrue(factory.oracleIsPermissionless())){
             require(factory.oracleWhitelisted(_oracle),"OptionsVaultERC20: oracle must be in whitelist");
         }
+        if(!OptionsLib.boolStateIsTrue(factory.collateralTokenIsPermissionless())){
+            require(factory.collateralTokenWhitelisted(collateralToken),"OptionsVaultERC20: collateral token must be in whitelist");
+        }          
         require(oracleEnabled[_oracle],"OptionsVaultERC20: oracle not enabled for this vault");        
         if(OptionsLib.boolStateIsTrue(buyerWhitelistOnly)){            
-            require(hasRole(VAULT_BUYERWHITELIST_ROLE, buyer), "OptionsVaultERC20: must be in buyer whitelist");
+            require(hasRole(VAULT_BUYERWHITELIST_ROLE, _buyer), "OptionsVaultERC20: must be in _buyer whitelist");
         }        
-        require(vaultCollateralAvailable()>=optionSize, "OptionsVaultERC20: Not enough available collateral");
+        require(vaultCollateralAvailable()>=_optionSize, "OptionsVaultERC20: Not enough available collateral");
 
         return true;
     }
@@ -293,47 +295,45 @@ contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
         return vaultCollateralTotal()-vaultCollateralLocked();
     }
 
-
     // How much is the vault utilized from 0...10000 (100%) if the optionSize is included 
     // Used for calculating 
-    function vaultUtilization(uint256 includingOptionSize) public view returns (uint256) {
-        return (vaultCollateralLocked()+includingOptionSize)*1e4/vaultCollateralTotal();        
+    function vaultUtilization(uint256 _includingOptionSize) public view returns (uint256) {
+        return (vaultCollateralLocked()+_includingOptionSize)*1e4/vaultCollateralTotal();        
     }
 
     function isVaultOwner() public {
         require(_msgSender()==vaultOwner, "OptionsVaultERC20: must have owner role");
     }
 
-    function isVaultOwnerOrOperator(address account) public {
+    function isVaultOwnerOrOperator(address _account) public {
         require(
-            (account==vaultOwner) ||
-                (hasRole(VAULT_OPERATOR_ROLE,account))
+            (_account==vaultOwner) ||
+                (hasRole(VAULT_OPERATOR_ROLE,_account))
             , "OptionsVaultERC20: must have owner or operator role");
     }
     
-    function setVaultFee(uint256 value) external {
+    function setVaultFee(uint256 _value) external {
         isVaultOwnerOrOperator(_msgSender());        
-        emit SetVaultUInt(_msgSender(),SetVariableType.VaultFee, getVaultId(), vaultFee, value);
-        vaultFee = value;
+        emit SetVaultUInt(_msgSender(),SetVariableType.VaultFee, getVaultId(), vaultFee, _value);
+        vaultFee = _value;
     }
 
-
-    function setWithdrawDelayPeriod(uint256 value) external {
+    function setWithdrawDelayPeriod(uint256 _value) external {
         isVaultOwnerOrOperator(_msgSender());
         require(!OptionsLib.boolStateIsTrue(withdrawDelayPeriodLocked),"OptionsVaultERC20: setting is immutable");
-        emit SetVaultUInt(_msgSender(),SetVariableType.WithdrawDelayPeriod, getVaultId(), withdrawDelayPeriod, value);
-        withdrawDelayPeriod = value;
+        emit SetVaultUInt(_msgSender(),SetVariableType.WithdrawDelayPeriod, getVaultId(), withdrawDelayPeriod, _value);
+        withdrawDelayPeriod = _value;
     }
 
-    function setWithdrawDelayPeriodLockedImmutable(BoolState value) public {
+    function setWithdrawDelayPeriodLockedImmutable(BoolState _value) public {
         isVaultOwnerOrOperator(_msgSender());
         require(OptionsLib.boolStateIsMutable(withdrawDelayPeriodLocked),"OptionsVaultERC20: setting is immutable");
-        emit SetVaultBoolState(_msgSender(),SetVariableType.WithdrawDelayPeriodLocked, getVaultId(), withdrawDelayPeriodLocked, value);
-        withdrawDelayPeriodLocked = value; 
+        emit SetVaultBoolState(_msgSender(),SetVariableType.WithdrawDelayPeriodLocked, getVaultId(), withdrawDelayPeriodLocked, _value);
+        withdrawDelayPeriodLocked = _value; 
     } 
 
-       function setLPWhitelistOnly(bool value) public {
-        if (value){
+       function setLPWhitelistOnly(bool _value) public {
+        if (_value){
             setLPWhitelistOnlyImmutable(BoolState.TrueMutable);
         }
         else{
@@ -341,71 +341,71 @@ contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
         }
     }
 
-    function setLPWhitelistOnlyImmutable(BoolState value) public {
+    function setLPWhitelistOnlyImmutable(BoolState _value) public {
         isVaultOwnerOrOperator(_msgSender());
         require(OptionsLib.boolStateIsMutable(lpWhitelistOnly),"OptionsVaultERC20: setting is immutable");
-        emit SetVaultBoolState(_msgSender(),SetVariableType.LPWhitelistOnly, getVaultId(), lpWhitelistOnly, value);
-        lpWhitelistOnly = value; 
+        emit SetVaultBoolState(_msgSender(),SetVariableType.LPWhitelistOnly, getVaultId(), lpWhitelistOnly, _value);
+        lpWhitelistOnly = _value; 
     }   
 
-    function setVaultOwner(address value) external  {
+    function setVaultOwner(address _value) external  {
         isVaultOwner();
-        emit SetVaultAddress(_msgSender(),SetVariableType.VaultOwner, getVaultId(), vaultOwner, value);
-        vaultOwner = value;
+        emit SetVaultAddress(_msgSender(),SetVariableType.VaultOwner, getVaultId(), vaultOwner, _value);
+        vaultOwner = _value;
     }    
 
-    function setVaultFeeRecipient(address value) external {
+    function setVaultFeeRecipient(address _value) external {
         isVaultOwner();
-        emit SetVaultAddress(_msgSender(),SetVariableType.VaultFeeRecipient, getVaultId(), vaultFeeRecipient, value);
-        vaultFeeRecipient = value;
+        emit SetVaultAddress(_msgSender(),SetVariableType.VaultFeeRecipient, getVaultId(), vaultFeeRecipient, _value);
+        vaultFeeRecipient = _value;
     }       
 
-    function grantVaultOperatorRole(address value) external {
+    function grantVaultOperatorRole(address _value) external {
         isVaultOwner();
-        emit SetVaultAddress(_msgSender(),SetVariableType.GrantVaultOperatorRole, getVaultId(), address(0), value);
-        _grantRole(VAULT_OPERATOR_ROLE,value);
+        emit SetVaultAddress(_msgSender(),SetVariableType.GrantVaultOperatorRole, getVaultId(), address(0), _value);
+        _grantRole(VAULT_OPERATOR_ROLE,_value);
     }
 
-    function revokeVaultOperatorRole(address value) external {
+    function revokeVaultOperatorRole(address _value) external {
         isVaultOwner();
-        emit SetVaultAddress(_msgSender(),SetVariableType.RevokeVaultOperatorRole, getVaultId(), value, address(0));
-        _revokeRole(VAULT_OPERATOR_ROLE,value);
+        emit SetVaultAddress(_msgSender(),SetVariableType.RevokeVaultOperatorRole, getVaultId(), _value, address(0));
+        _revokeRole(VAULT_OPERATOR_ROLE,_value);
     }    
 
 
-    function setMaxInvest(uint256 value) external {
+    function setMaxInvest(uint256 _value) external {
         isVaultOwnerOrOperator(_msgSender());
-        emit SetVaultUInt(_msgSender(),SetVariableType.MaxInvest, getVaultId(), maxInvest, value);
-        maxInvest = value;
+        emit SetVaultUInt(_msgSender(),SetVariableType.MaxInvest, getVaultId(), maxInvest, _value);
+        maxInvest = _value;
     }  
 
-    function grantLPWhitelistRole(address value) external {
+    function grantLPWhitelistRole(address _value) external {
         isVaultOwnerOrOperator(_msgSender());
-        emit SetVaultAddress(_msgSender(),SetVariableType.GrantLPWhitelistRole, getVaultId(), address(0), value);
-        grantRole(VAULT_LPWHITELIST_ROLE,value);
+        emit SetVaultAddress(_msgSender(),SetVariableType.GrantLPWhitelistRole, getVaultId(), address(0), _value);
+        grantRole(VAULT_LPWHITELIST_ROLE,_value);
     }
 
-    function revokeLPWhitelistRole(address value) external {
+    function revokeLPWhitelistRole(address _value) external {
         isVaultOwnerOrOperator(_msgSender());
-        emit SetVaultAddress(_msgSender(),SetVariableType.RevokeLPWhitelistRole, getVaultId(), value, address(0));
-        revokeRole(VAULT_LPWHITELIST_ROLE,value);
+        emit SetVaultAddress(_msgSender(),SetVariableType.RevokeLPWhitelistRole, getVaultId(), _value, address(0));
+        revokeRole(VAULT_LPWHITELIST_ROLE,_value);
     }
 
-    function grantBuyerWhitelistRole(address value) external {
+    function grantBuyerWhitelistRole(address _value) external {
         isVaultOwnerOrOperator(_msgSender());
-        emit SetVaultAddress(_msgSender(),SetVariableType.GrantBuyerWhitelistRole, getVaultId(), address(0), value);
-        grantRole(VAULT_BUYERWHITELIST_ROLE,value);
+        emit SetVaultAddress(_msgSender(),SetVariableType.GrantBuyerWhitelistRole, getVaultId(), address(0), _value);
+        grantRole(VAULT_BUYERWHITELIST_ROLE,_value);
     }
 
-    function revokeBuyerWhitelistRole(address value) external {
+    function revokeBuyerWhitelistRole(address _value) external {
         isVaultOwnerOrOperator(_msgSender());
-        emit SetVaultAddress(_msgSender(),SetVariableType.RevokeBuyerWhitelistRole, getVaultId(), value, address(0));
-        revokeRole(VAULT_BUYERWHITELIST_ROLE,value);
+        emit SetVaultAddress(_msgSender(),SetVariableType.RevokeBuyerWhitelistRole, getVaultId(), _value, address(0));
+        revokeRole(VAULT_BUYERWHITELIST_ROLE,_value);
     }    
 
 
-  function setBuyerWhitelistOnly(bool value) public {
-        if (value){
+  function setBuyerWhitelistOnly(bool _value) public {
+        if (_value){
             setBuyerWhitelistOnlyImmutable(BoolState.TrueMutable);
         }
         else{
@@ -413,46 +413,54 @@ contract OptionsVaultERC20 is ERC20, AccessControl, IStructs, IOptions {
         }
     }  
 
-    function setBuyerWhitelistOnlyImmutable(BoolState value) public {
+    function setBuyerWhitelistOnlyImmutable(BoolState _value) public {
         isVaultOwnerOrOperator(_msgSender());
         require(OptionsLib.boolStateIsMutable(buyerWhitelistOnly),"OptionsVaultERC20: setting is immutable");
-        emit SetVaultBoolState(_msgSender(),SetVariableType.BuyerWhitelistOnly, getVaultId(), buyerWhitelistOnly, value);
-        buyerWhitelistOnly = value; 
+        emit SetVaultBoolState(_msgSender(),SetVariableType.BuyerWhitelistOnly, getVaultId(), buyerWhitelistOnly, _value);
+        buyerWhitelistOnly = _value; 
     } 
     
-    function setReadOnly(bool value) external {
+    function setReadOnly(bool _value) external {
         isVaultOwnerOrOperator(_msgSender());
-        emit SetVaultBool(_msgSender(),SetVariableType.ReadOnly, getVaultId(), readOnly, value);
-        readOnly = value;
+        emit SetVaultBool(_msgSender(),SetVariableType.ReadOnly, getVaultId(), readOnly, _value);
+        readOnly = _value;
     }
 
 
-    function setVaultFeeCalc(IFeeCalcs value) external {
+    function setVaultFeeCalc(IFeeCalcs _value) external {
         isVaultOwnerOrOperator(_msgSender());
-        emit SetVaultAddress(_msgSender(),SetVariableType.VaultFeeCalc, getVaultId(), address(vaultFeeCalc), address(value));
-        vaultFeeCalc = value;
+        require(!OptionsLib.boolStateIsTrue(vaultFeeCalcLocked),"OptionsVaultERC20: vaultFeeCalc is locked");        
+        emit SetVaultAddress(_msgSender(),SetVariableType.VaultFeeCalc, getVaultId(), address(vaultFeeCalc), address(_value));
+        vaultFeeCalc = _value;
     }  
 
-    function setIpfsHash(string memory value) external {
+    function setVaultFeeCalcLockedImmutable(BoolState _value) public {
         isVaultOwnerOrOperator(_msgSender());
-        ipfsHash = value;
+        require(OptionsLib.boolStateIsMutable(vaultFeeCalcLocked),"OptionsVaultERC20: setting is immutable");
+        emit SetVaultBoolState(_msgSender(),SetVariableType.VaultFeeCalcLocked, getVaultId(), vaultFeeCalcLocked, _value);
+        vaultFeeCalcLocked = _value; 
+    }       
+
+    function setIpfsHash(string memory _value) external {
+        isVaultOwnerOrOperator(_msgSender());
+        ipfsHash = _value;
     }  
 
-     function setOracleEnabled(IOracle _oracle, bool value) external {
+     function setOracleEnabled(IOracle _oracle, bool _value) external {
         isVaultOwnerOrOperator(_msgSender());
         if(!OptionsLib.boolStateIsTrue(factory.oracleIsPermissionless())){
             require(factory.oracleWhitelisted(_oracle),"OptionsVaultERC20: oracle must be in whitelist");
         }
         require(!OptionsLib.boolStateIsTrue(oracleEnabledLocked),"OptionsVaultERC20: setting is immutable");
-        oracleEnabled[_oracle] = value; 
-        emit UpdateOracle(_oracle, getVaultId(), value, collateralToken, _oracle.decimals(), _oracle.description());
+        oracleEnabled[_oracle] = _value; 
+        emit UpdateOracle(_oracle, getVaultId(), _value, collateralToken, _oracle.decimals(), _oracle.description());
     }    
 
-    function setOracleEnabledLockedImmutable(BoolState value) public {
+    function setOracleEnabledLockedImmutable(BoolState _value) public {
         isVaultOwnerOrOperator(_msgSender());
         require(OptionsLib.boolStateIsMutable(oracleEnabledLocked),"OptionsVaultERC20: setting is immutable");
-        emit SetVaultBoolState(_msgSender(),SetVariableType.OracleEnabledLocked, getVaultId(), oracleEnabledLocked, value);
-        oracleEnabledLocked = value; 
+        emit SetVaultBoolState(_msgSender(),SetVariableType.OracleEnabledLocked, getVaultId(), oracleEnabledLocked, _value);
+        oracleEnabledLocked = _value; 
     }   
  
     function getVaultId() public view returns (uint256) {

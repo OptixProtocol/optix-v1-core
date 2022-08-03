@@ -7,7 +7,7 @@ pragma solidity 0.8.13;
 import "./OptionsVaultFactory.sol";
 import "./interfaces/Interfaces.sol";
 
-contract SimpleSellerERC20 is IFeeCalcs, IStructs {
+contract SimpleSeller is IFeeCalcs, IStructs {
 
     OptionsVaultFactory public factory;
 
